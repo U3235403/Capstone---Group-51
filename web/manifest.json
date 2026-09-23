@@ -1,11 +1,11 @@
 {
-    "name": "shopping_list_app",
-    "short_name": "shopping_list_app",
+    "name": "Stage 1",
+    "short_name": "Stage 1",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F8F7F5",
+    "theme_color": "#4D7051",
+    "description": "Offline household shopping lists.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
