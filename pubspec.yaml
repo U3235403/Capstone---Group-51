@@ -57,6 +57,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
     - family: LocalRoboto
       fonts:
         - asset: assets/fonts/Roboto-Regular.ttf

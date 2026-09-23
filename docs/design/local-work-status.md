@@ -33,3 +33,9 @@ A simulated authenticator test does not verify physical biometrics. Passing a do
 ## Review
 
 Use the release on http://127.0.0.1:5188 and create a passphrase directly in the app. The earlier memory-only preview on 5187 is superseded. Approval to merge or publish has not been given.
+
+## Stage 1 final review
+
+Fixed autocomplete category refresh, explicit recovery from failed/stale saves, device-setting coordination with pending saves, cross-tab write races, cancellation during speech capability detection, and offline heading/button fonts. Both the theme font and Flutter default Roboto are bundled; fallback URLs stay on the local origin.
+
+Task evidence is saved outside the repository in Documents/capstone tasks. It contains screenshots for all 22 IDs in the latest supplied list; voice and physical biometric completion are explicitly unverified. App labels use Stage 1. The Git branch remains SAV and the legacy storage identifier remains unchanged to preserve the existing encrypted vault.
