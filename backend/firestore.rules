@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function membership(householdId) {
+      return get(/databases/$(database)/documents/households/$(householdId)/members/$(request.auth.uid)).data;
+    }
+    function member(householdId) {
+      return verified() && membership(householdId).status == 'active'
+        && membership(householdId).role in ['owner','caregiver','member','viewer'];
+    }
+    function manager(householdId) {
+      return member(householdId) && membership(householdId).role in ['owner','caregiver'];
+    }
+    // Writes go through authenticated server commands, not direct SDK writes.
+    // Admin SDK bypasses these rules: every future command MUST check membership,
+    // role, input, revision, safety limits and idempotency in its transaction.
+    match /users/{uid} {
+      allow get: if verified() && request.auth.uid == uid;
+      match /households/{householdId} {
+        allow read: if verified() && request.auth.uid == uid;
+      }
+    }
+    match /households/{householdId} {
+      allow get: if member(householdId);
+      match /members/{uid} {
+        allow read: if member(householdId);
+      }
+      match /lists/{listId} {
+        allow read: if member(householdId);
+        match /items/{itemId} {
+          allow read: if member(householdId);
+        }
+      }
+      match /safetyRules/{productKey} {
+        allow read: if member(householdId);
+      }
+      match /audit/{eventId} {
+        allow read: if manager(householdId);
+      }
+    }
+    match /catalogue/{productKey} {
+      allow read: if verified();
+    }
+    // Includes invitations, command receipts, unknown paths and ALL client writes.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

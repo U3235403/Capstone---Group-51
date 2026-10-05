@@ -1,0 +1,25 @@
+import {before,after,test} from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {deleteApp} from 'firebase-admin/app';
+import {Timestamp} from 'firebase-admin/firestore';
+import {localAdmin} from '../src/admin.mjs';
+import {listService} from '../src/lists.mjs';
+import {retentionDeadline} from '../src/retention.mjs';
+let ctx,service,hid;const user={uid:'list-owner',email_verified:true};
+const req=()=>randomUUID();const item=(revision,extra={})=>({requestId:req(),expectedRevision:revision,ruleRevision:1,productKey:'milk',quantity:2,purchased:false,favourite:false,notes:'',assigneeUid:null,...extra});
+const denied=(promise,code)=>assert.rejects(promise,e=>e.status===code);
+before(async()=>{ctx=localAdmin('list-tests');service=listService(ctx.db);hid='list-tests-'+req();const now=Timestamp.now();await ctx.db.doc(`households/${hid}`).set({ownerUid:user.uid});for(const [uid,role]of [[user.uid,'owner'],['list-viewer','viewer'],['list-member','member']])await ctx.db.doc(`households/${hid}/members/${uid}`).set({role,status:'active'});await ctx.db.doc('catalogue/milk').set({name:'Milk',category:'Dairy',active:true});await ctx.db.doc(`households/${hid}/safetyRules/milk`).set({maximum:2,mode:'block',revision:1,updatedAt:now});});
+after(async()=>deleteApp(ctx.app));
+async function create(){return service.create(user,hid,{requestId:req(),name:'Test list'});}
+test('three calendar month retention clamps end of month',()=>{assert.equal(retentionDeadline('2026-01-31T10:00:00Z').toISOString(),'2026-04-30T10:00:00.000Z');assert.equal(retentionDeadline('2026-10-05T10:00:00Z').toISOString(),'2027-01-05T10:00:00.000Z');});
+test('viewer and outsider cannot mutate lists',async()=>{for(const uid of ['list-viewer','outsider'])await denied(service.create({...user,uid},hid,{requestId:req(),name:'No'}),403);});
+test('create retries are idempotent, altered reuse rejected',async()=>{const input={requestId:req(),name:'Once'};const a=await service.create(user,hid,input);assert.deepEqual(await service.create(user,hid,input),a);await denied(service.create(user,hid,{...input,name:'Twice'}),409);});
+test('only managers can set safety limits',async()=>{await denied(service.rule({...user,uid:'list-member'},hid,'milk',{requestId:req(),maximum:8,mode:'warn',expectedRevision:1}),403);});
+test('aggregate block cannot be bypassed by a second row or confirmation',async()=>{const a=await create(),b=await service.save(user,hid,a.listId,item(1));await denied(service.save(user,hid,a.listId,item(b.revision,{quantity:1,confirmed:true})),409);});
+test('simultaneous writes reject stale revision rather than losing edits',async()=>{const a=await create();const results=await Promise.allSettled([service.save(user,hid,a.listId,item(1,{quantity:1})),service.save(user,hid,a.listId,item(1,{quantity:1}))]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);assert.equal(results.find(r=>r.status==='rejected').reason.status,409);});
+test('purchase toggle back to buy also enforces limit',async()=>{const a=await create();const b=await service.save(user,hid,a.listId,item(1,{purchased:true}));const c=await service.save(user,hid,a.listId,item(2));await denied(service.save(user,hid,a.listId,item(c.revision,{itemId:b.itemId})),409);});
+test('delete and restore retain data and remove expiry after recovery',async()=>{const a=await create(),b=await service.save(user,hid,a.listId,item(1));const c=await service.remove(user,hid,a.listId,b.itemId,{requestId:req(),expectedRevision:2});let row=(await ctx.db.doc(`households/${hid}/lists/${a.listId}/items/${b.itemId}`).get()).data();assert(row.deleted);assert(row.expiresAt.toMillis()>row.deletedAt.toMillis());await service.restore(user,hid,a.listId,b.itemId,{requestId:req(),expectedRevision:c.revision,ruleRevision:1});row=(await ctx.db.doc(`households/${hid}/lists/${a.listId}/items/${b.itemId}`).get()).data();assert.equal(row.deleted,false);assert.equal(row.expiresAt,undefined);});
+test('invalid quantities and foreign assignee rejected',async()=>{const a=await create();await denied(service.save(user,hid,a.listId,item(1,{quantity:-1})),400);await denied(service.save(user,hid,a.listId,item(1,{assigneeUid:'outsider'})),400);});
+test('item retry returns original result without duplicates',async()=>{const a=await create(),input=item(1);const b=await service.save(user,hid,a.listId,input);assert.deepEqual(await service.save(user,hid,a.listId,input),b);assert.equal((await ctx.db.collection(`households/${hid}/lists/${a.listId}/items`).get()).size,1);});
+test('warn confirmation must use current rule revision',async()=>{const rule=await service.rule(user,hid,'milk',{requestId:req(),expectedRevision:1,maximum:2,mode:'warn'});const a=await create();await denied(service.save(user,hid,a.listId,item(1,{quantity:3,ruleRevision:rule.revision})),409);await denied(service.save(user,hid,a.listId,item(1,{quantity:3,confirmed:true,ruleRevision:1})),409);await service.save(user,hid,a.listId,item(1,{quantity:3,confirmed:true,ruleRevision:rule.revision}));});

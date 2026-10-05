@@ -1,0 +1,8 @@
+@font-face{font-family:Inter;src:url('assets/assets/fonts/Inter.ttf') format('truetype');font-display:swap}
+html,body{margin:0;background:#f9f8f6;font-family:Inter,system-ui,sans-serif;color:#1a1917} [hidden]{display:none!important}
+#loading{position:fixed;inset:0;display:grid;place-content:center;text-align:center;padding:24px}
+#install-panel{position:fixed;z-index:10000;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);box-sizing:border-box;width:min(380px,calc(100% - 24px));padding:20px;background:#fff;border:1px solid #e6e3df;border-radius:20px;box-shadow:0 8px 32px #0003}
+#install-title{margin:0 0 10px;font-size:18px} #install-message{font-size:15px;line-height:1.5;margin:0 0 10px} #offline-status{font-size:13px;line-height:1.4;color:#6b6661}
+.install-actions{display:flex;gap:12px;margin-top:16px} .install-actions button{min-height:44px;padding:10px 16px;border-radius:14px;font:600 15px Inter,system-ui;cursor:pointer;border:2px solid #4f6f52;background:#4f6f52;color:white} #install-close{background:white;color:#4f6f52} button:focus-visible{outline:3px solid #1a1917;outline-offset:3px}
+
+#install-panel{top:auto;margin:0;color:#1a1917} #install-panel::backdrop{background:#0003}

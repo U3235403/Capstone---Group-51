@@ -1,0 +1,13 @@
+import {spawn} from 'node:child_process';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const mode=process.argv[2]||'start';
+if(!['start','test'].includes(mode))throw Error('Use start or test');
+const args=mode==='test'?['emulators:exec','--only','auth,firestore','node --test --test-concurrency=1 test/*.test.mjs']:['emulators:start','--only','auth,firestore'];
+const env={...process.env,FIREBASE_EMULATORS_PATH:path.join(root,'.local/emulators'),XDG_CONFIG_HOME:path.join(root,'.local/config'),CI:'true'};
+const child=spawn(process.execPath,[require.resolve('firebase-tools/lib/bin/firebase.js'),'--project','demo-stage1',...args],{cwd:root,env,stdio:'inherit'});
+child.on('exit',code=>process.exit(code??1));
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>child.kill(signal));

@@ -1,0 +1,5 @@
+# The emulator and tests use pure-JS paths; dependency install hooks are disabled.
+allowBuilds:
+  '@firebase/util': false
+  protobufjs: false
+  re2: false

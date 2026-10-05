@@ -96,7 +96,19 @@
     const input = JSON.parse(payload || '{}');
     try {
       let result = {};
-      if (action === 'status') {
+      if (action === 'wireframeLoad') {
+        const raw = localStorage.getItem('stage1.figma.v1');
+        const saved = raw ? JSON.parse(raw) : null;
+        result = {data:saved?.data ?? null,revision:saved?.revision ?? 0};
+      } else if (action === 'wireframeSave') {
+        const raw = localStorage.getItem('stage1.figma.v1');
+        const prior = raw ? JSON.parse(raw) : null;
+        if ((prior?.revision ?? 0) !== input.revision)
+          throw Error('This list changed in another tab. Reload to use the latest saved list.');
+        const revision = input.revision + 1;
+        localStorage.setItem('stage1.figma.v1',JSON.stringify({revision,data:input.data}));
+        result = {revision};
+      } else if (action === 'status') {
         const r = load();
         result = {exists:!!r,deviceUnlock:!!r?.deviceWrap};
       } else if (action === 'create') {

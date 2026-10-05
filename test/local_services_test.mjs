@@ -78,3 +78,16 @@ const pendingVoice=speech('voice');
 await speech('cancelVoice'); releaseAvailability('available');
 assert.equal((await pendingVoice).ok,false); assert.equal(starts,0);
 console.log('PASS: concurrent writes, stale device change, missing Web Locks, cancellation before speech availability.');
+
+// The wireframe store never overwrites the previous encrypted account.
+const vaultBefore=storage.get(key);
+assert.equal((await call('wireframeLoad')).data,null);
+assert.equal((await call('wireframeSave',{revision:0,data:'{"items":["Milk"]}'})).ok,true);
+assert.equal((await runtime()('wireframeLoad')).data,'{"items":["Milk"]}');
+assert.equal((await call('wireframeSave',{revision:0,data:'stale'})).ok,false);
+quota=true;
+assert.equal((await call('wireframeSave',{revision:1,data:'lost'})).ok,false);
+quota=false;
+assert.equal((await call('wireframeLoad')).revision,1);
+assert.equal(storage.get(key),vaultBefore);
+console.log('PASS: wireframe persistence, stale-tab protection, quota failure, legacy vault isolation.');
