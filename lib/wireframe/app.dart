@@ -2076,7 +2076,7 @@ class _WireframeHomeState extends State<WireframeHome> {
       children: [
         words(text, 15, weight: 800, color: colour),
         const SizedBox(width: 10),
-        Expanded(child: Container(height: 2, color: colour.withOpacity(.5))),
+        Expanded(child: Container(height: 2, color: colour.withValues(alpha:.5))),
       ],
     ),
   );
@@ -2148,7 +2148,7 @@ class _WireframeHomeState extends State<WireframeHome> {
 
   // Item picture tile: tick bottom right, amount top left.
   Widget itemTile(ShoppingItem item) {
-    final tint = sectionColour(item.category).withOpacity(.14);
+    final tint = sectionColour(item.category).withValues(alpha:.14);
     return Tap(
       label: 'Edit ${item.name}',
       onTap: () => details(item.name, item),
@@ -2354,7 +2354,7 @@ class _WireframeHomeState extends State<WireframeHome> {
       });
       return const SizedBox();
     }
-    final tint = sectionColour(item.category).withOpacity(.14);
+    final tint = sectionColour(item.category).withValues(alpha:.14);
     void next() => setState(() => shopIndex++);
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
@@ -3770,7 +3770,7 @@ class _WireframeHomeState extends State<WireframeHome> {
               ),
             ),
             Tap(
-              label: 'Change ${name}: name, person or delete',
+              label: 'Change $name: name, person or delete',
               onTap: () => manageList(name),
               child: Padding(
                 padding: const EdgeInsets.all(10),
@@ -3980,7 +3980,7 @@ class _WireframeHomeState extends State<WireframeHome> {
                   color: green,
                   boxShadow: [
                     BoxShadow(
-                      color: green.withOpacity(.3),
+                      color: green.withValues(alpha:.3),
                       blurRadius: 24,
                       offset: const Offset(0, 10),
                     ),
