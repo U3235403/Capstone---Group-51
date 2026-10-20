@@ -214,3 +214,148 @@ class SettingsComingSoon extends StatelessWidget {
     ),
   );
 }
+
+// Household members: add, see and remove the people this account shops for.
+class HouseholdSettings extends StatefulWidget {
+  const HouseholdSettings({super.key, required this.model});
+  final WireframeModel model;
+  @override
+  State<HouseholdSettings> createState() => _HouseholdSettingsState();
+}
+
+class _HouseholdSettingsState extends State<HouseholdSettings> {
+  final name = TextEditingController();
+  String? problem;
+
+  @override
+  void dispose() {
+    name.dispose();
+    super.dispose();
+  }
+
+  void add() {
+    final n = name.text.trim();
+    if (n.isEmpty) {
+      setState(() => problem = 'Type a name first.');
+      return;
+    }
+    if (widget.model.people.any((p) => p.toLowerCase() == n.toLowerCase())) {
+      setState(() => problem = '$n is already here.');
+      return;
+    }
+    widget.model.addPerson(n);
+    name.clear();
+    setState(() => problem = null);
+  }
+
+  Future<void> remove(String who) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Remove $who?'),
+        content: const Text(
+          'Anything set aside for them goes back to the whole household. '
+          'Nothing is deleted from your lists.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Keep them'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) setState(() => widget.model.removePerson(who));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final me = widget.model.accountName.trim();
+    final others = widget.model.people.where((p) => p != me).toList();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      children: [
+        words('The people you shop for', 20, weight: 800),
+        const SizedBox(height: 8),
+        words(
+          'Add the people in your home so you can set items aside for them.',
+          15,
+          color: muted,
+        ),
+        const SizedBox(height: 20),
+        if (me.isNotEmpty) person(me, isMe: true),
+        for (final p in others) person(p),
+        if (others.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: words('No one else added yet.', 15, color: muted),
+          ),
+        const SizedBox(height: 24),
+        words('Add someone', 17, weight: 700),
+        const SizedBox(height: 10),
+        TextField(
+          controller: name,
+          textCapitalization: TextCapitalization.words,
+          onSubmitted: (_) => add(),
+          decoration: const InputDecoration(
+            labelText: 'Their name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        if (problem != null) ...[
+          const SizedBox(height: 8),
+          Semantics(
+            liveRegion: true,
+            child: words(problem!, 14, color: Colors.red),
+          ),
+        ],
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 56,
+          child: FilledButton(
+            onPressed: add,
+            child: words('Add to my household', 17, weight: 700,
+                color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget person(String who, {bool isMe = false}) => Container(
+        constraints: const BoxConstraints(minHeight: 64),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: box(color: isMe ? pale : Colors.white, radius: 16),
+        child: Row(
+          children: [
+            Icon(isMe ? Icons.person : Icons.person_outline,
+                size: 26, color: green),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  words(who, 17, weight: 700),
+                  if (isMe) words('This is you', 14, color: muted),
+                ],
+              ),
+            ),
+            if (!isMe)
+              Tap(
+                label: 'Remove $who',
+                onTap: () => remove(who),
+                child: const Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Icon(Icons.close, size: 24, color: muted),
+                ),
+              ),
+          ],
+        ),
+      );
+} 
+

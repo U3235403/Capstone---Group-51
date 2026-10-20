@@ -1302,14 +1302,12 @@ class _WireframeHomeState extends State<WireframeHome> {
                                       screen = 'page';
                                     }),
                                   ),
-                                  'page' => settingsPage == 'My details'
-                                      ? AccountDetails(
-                                          model: model,
-                                          onDone: () => go('settings'),
-                                        )
-                                      : SettingsComingSoon(
-                                          title: settingsPage,
-                                        ),
+                                    'page' => switch (settingsPage) {
+                                        'My details' =>
+                                          AccountDetails(model: model, onDone: () => go('settings')),
+                                        'Household' => HouseholdSettings(model: model),
+                                        _ => SettingsComingSoon(title: settingsPage),
+                                      },
                                   _ => listBody(),
                                 },
                         ),

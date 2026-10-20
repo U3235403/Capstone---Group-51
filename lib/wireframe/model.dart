@@ -170,6 +170,14 @@ class WireframeModel extends ChangeNotifier {
     save();
   }
 
+  void removePerson(String name) {
+    final n = name.trim().toLowerCase();
+  household.removeWhere((p) => p.toLowerCase() == n);
+    itemFor.removeWhere((_, who) => who.toLowerCase() == n);
+    listFor.removeWhere((_, who) => who.toLowerCase() == n);
+    save();
+  }
+
   // Add/purchase times per item (milliseconds), used for habit suggestions.
   // Calculated on the device only.
   Map<String, List<int>> habits = {};
