@@ -1306,6 +1306,7 @@ class _WireframeHomeState extends State<WireframeHome> {
                                         'My details' =>
                                           AccountDetails(model: model, onDone: () => go('settings')),
                                         'Household' => HouseholdSettings(model: model),
+                                        'Shops' => ShopSettings(model: model),
                                         _ => SettingsComingSoon(title: settingsPage),
                                       },
                                   _ => listBody(),

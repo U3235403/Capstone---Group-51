@@ -359,3 +359,131 @@ class _HouseholdSettingsState extends State<HouseholdSettings> {
       );
 } 
 
+// Shops: the places this household buys from.
+class ShopSettings extends StatefulWidget {
+  const ShopSettings({super.key, required this.model});
+  final WireframeModel model;
+  @override
+  State<ShopSettings> createState() => _ShopSettingsState();
+}
+
+class _ShopSettingsState extends State<ShopSettings> {
+  final shop = TextEditingController();
+  String? problem;
+
+  @override
+  void dispose() {
+    shop.dispose();
+    super.dispose();
+  }
+
+  void add() {
+    final n = shop.text.trim();
+    if (n.isEmpty) {
+      setState(() => problem = 'Type a shop name first.');
+      return;
+    }
+    if (widget.model.stores.any((s) => s.toLowerCase() == n.toLowerCase())) {
+      setState(() => problem = '$n is already on your list.');
+      return;
+    }
+    widget.model.addStore(n);
+    shop.clear();
+    setState(() => problem = null);
+  }
+
+  Future<void> remove(String s) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Remove $s?'),
+        content: const Text(
+          'Items set for this shop go back to no shop in particular. '
+          'Nothing is deleted from your lists.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Keep it'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) setState(() => widget.model.removeStore(s));
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        children: [
+          words('Where you shop', 20, weight: 800),
+          const SizedBox(height: 8),
+          words(
+            'Add the shops you use so items can be grouped by where to buy them.',
+            15,
+            color: muted,
+          ),
+          const SizedBox(height: 20),
+          for (final s in widget.model.stores) tile(s),
+          if (widget.model.stores.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: words('No shops added yet.', 15, color: muted),
+            ),
+          const SizedBox(height: 24),
+          words('Add a shop', 17, weight: 700),
+          const SizedBox(height: 10),
+          TextField(
+            controller: shop,
+            textCapitalization: TextCapitalization.words,
+            onSubmitted: (_) => add(),
+            decoration: const InputDecoration(
+              labelText: 'Shop name',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          if (problem != null) ...[
+            const SizedBox(height: 8),
+            Semantics(
+              liveRegion: true,
+              child: words(problem!, 14, color: Colors.red),
+            ),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 56,
+            child: FilledButton(
+              onPressed: add,
+              child: words('Add this shop', 17, weight: 700,
+                  color: Colors.white),
+            ),
+          ),
+        ],
+      );
+
+  Widget tile(String s) => Container(
+        constraints: const BoxConstraints(minHeight: 64),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: box(radius: 16),
+        child: Row(
+          children: [
+            const Icon(Icons.storefront_outlined, size: 26, color: green),
+            const SizedBox(width: 14),
+            Expanded(child: words(s, 17, weight: 700)),
+            Tap(
+              label: 'Remove $s',
+              onTap: () => remove(s),
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(Icons.close, size: 24, color: muted),
+              ),
+            ),
+          ],
+        ),
+      );
+}

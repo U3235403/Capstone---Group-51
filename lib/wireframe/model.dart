@@ -276,6 +276,13 @@ class WireframeModel extends ChangeNotifier {
     save();
   }
 
+  void removeStore(String shop) {
+  final n = shop.trim().toLowerCase();
+  stores.removeWhere((s) => s.toLowerCase() == n);
+  itemStore.removeWhere((_, s) => s.toLowerCase() == n);
+  save();
+}
+
   String listAssignee(String list) => listFor[list] ?? '';
   void setListAssignee(String list, String who) {
     if (who.isEmpty) {
