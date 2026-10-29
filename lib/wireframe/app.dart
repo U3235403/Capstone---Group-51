@@ -49,7 +49,7 @@ Widget words(
   value,
   textAlign: align,
   style: type(
-    size,
+    size * uiTextScale,       
     weight,
     color,
   ).copyWith(decoration: strike ? TextDecoration.lineThrough : null),
@@ -1307,7 +1307,9 @@ class _WireframeHomeState extends State<WireframeHome> {
                                           AccountDetails(model: model, onDone: () => go('settings')),
                                         'Household' => HouseholdSettings(model: model),
                                         'Shops' => ShopSettings(model: model),
+                                        'Display' => DisplaySettings(model: model),  
                                         _ => SettingsComingSoon(title: settingsPage),
+
                                       },
                                   _ => listBody(),
                                 },

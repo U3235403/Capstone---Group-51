@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../app_model.dart' show LocalOperation;
 import '../local_platform.dart';
 import '../shopping_item.dart';
+double uiTextScale = 1.0;
 
 const groceries = <String, String>{
   'Organic Bananas': 'Produce',
@@ -360,6 +361,15 @@ class WireframeModel extends ChangeNotifier {
     const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return '${d.day} ${mo[d.month - 1]}';
   }
+
+  double textScale = 1.0;
+
+  void setTextScale(double value) {
+    textScale = value.clamp(1.0, 1.5);
+    uiTextScale = textScale;
+    save();
+  }
+
   // Whether carer features are enabled.
   bool familyMode = true;
   // Signed-in role: '' (none), 'user' (person with MCI) or 'carer'.
@@ -443,6 +453,7 @@ class WireframeModel extends ChangeNotifier {
     'itemStore': itemStore.map((k, v) => MapEntry('$k', v)),
     'itemFor': itemFor.map((k, v) => MapEntry('$k', v)),
     'listFor': listFor,
+    'textScale': textScale,
     'otherLists': otherLists.map(
       (k, v) => MapEntry(k, v.map((i) => i.toJson()).toList()),
     ),
@@ -507,6 +518,11 @@ class WireframeModel extends ChangeNotifier {
           accountName = '${acct['name'] ?? ''}';
           linkedTo = '${acct['linkedTo'] ?? ''}';
         }
+
+        textScale =
+            ((j['textScale'] as num?)?.toDouble() ?? 1.0).clamp(1.0, 1.5);
+        uiTextScale = textScale;
+
         final rawFavs = j['favourites'];
         favourites = rawFavs is List ? rawFavs.whereType<String>().toList() : [];
         final rawHistory = j['history'];

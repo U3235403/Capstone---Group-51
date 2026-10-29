@@ -487,3 +487,89 @@ class _ShopSettingsState extends State<ShopSettings> {
         ),
       );
 }
+
+class DisplaySettings extends StatefulWidget {
+  const DisplaySettings({super.key, required this.model});
+  final WireframeModel model;
+  @override
+  State<DisplaySettings> createState() => _DisplaySettingsState();
+}
+
+class _DisplaySettingsState extends State<DisplaySettings> {
+  static const options = [
+    (1.0, 'Normal'),
+    (1.2, 'Large'),
+    (1.35, 'Larger'),
+    (1.5, 'Largest'),
+  ];
+
+  void pick(double value) {
+    widget.model.setTextScale(value);
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = widget.model.textScale;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      children: [
+        words('Text size', 20, weight: 800),
+        const SizedBox(height: 8),
+        words(
+          'Pick the size that is easiest for you to read. '
+          'The whole app changes straight away.',
+          15,
+          color: muted,
+        ),
+        const SizedBox(height: 20),
+        for (final (value, label) in options) choice(value, label, current),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: box(color: pale, radius: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              words('Example', 14, weight: 700, color: muted),
+              const SizedBox(height: 8),
+              words('2 litres of milk', 17, weight: 700),
+              words('Dairy & Eggs', 15, color: muted),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget choice(double value, String label, double current) {
+    final on = (current - value).abs() < 0.01;
+    return Tap(
+      label: '$label text size',
+      checked: on,
+      onTap: () => pick(value),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 64),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: box(
+          color: on ? pale : Colors.white,
+          radius: 16,
+          border: on ? green : line,
+          thickness: on ? 2 : 1,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              on ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              size: 26,
+              color: on ? green : muted,
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: words(label, 17, weight: on ? 800 : 500)),
+          ],
+        ),
+      ),
+    );
+  }
+}
