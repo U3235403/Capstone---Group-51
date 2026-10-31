@@ -5114,8 +5114,8 @@ class _WireframeHomeState extends State<WireframeHome> {
                         blocked
                             ? '$limitText Please choose a smaller number.'
                             : '$limitText Do you want to add $quantity anyway?',
-                        style: type(14, 400, muted).copyWith(height: 1.4),
-                      ),
+                            style: type(14 * uiTextScale, 400, muted).copyWith(height: 1.4),
+                            ),
                       const SizedBox(height: 24),
                       if (!blocked) ...[
                         action(

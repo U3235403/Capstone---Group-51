@@ -87,6 +87,12 @@ class RemoteWireframeModel extends WireframeModel {
   }
 
   @override
+  void removeItem(int id) {
+    if (!writable()) return;
+    unawaited(run('delete', {'id': id}));
+  }
+
+  @override
   bool toggle(ShoppingItem item) {
     if (!writable()) return false;
     unawaited(run('toggle', {'id': item.id}));

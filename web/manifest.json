@@ -1,11 +1,11 @@
 {
-  "name": "Stage 1",
-  "short_name": "Stage 1",
+  "name": "Shared Shopping List",
+  "short_name": "Shopping List",
+  "description": "A shared household shopping list. Add items by typing or voice, see what others have already bought, and set quantity limits.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f9f8f6",
   "theme_color": "#4f6f52",
-  "description": "Your shopping list, saved locally on this device. Works offline after the first complete load.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [
