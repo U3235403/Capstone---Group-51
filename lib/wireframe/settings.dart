@@ -517,8 +517,7 @@ class _DisplaySettingsState extends State<DisplaySettings> {
         words('Text size', 20, weight: 800),
         const SizedBox(height: 8),
         words(
-          'Pick the size that is easiest for you to read. '
-          'The whole app changes straight away.',
+          'Pick the size that is easiest for you to read. ',
           15,
           color: muted,
         ),
