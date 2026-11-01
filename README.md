@@ -2,7 +2,7 @@ Shared Shopping List — Group 51
 
 A shared household shopping list, built as an installable web application (PWA) in Flutter, with a local backend service.
 
-This document explains how to run the application from a clean machine. It was written from a first-time setup on Windows 11; macOS and Linux notes are included where the commands differ.
+This document will explain how to run the application from a clean machine. It was written from a first time setup on Windows 11; macOS and Linux notes are included where the commands differ.
 
 ## 1. What you are running
 
@@ -14,7 +14,7 @@ The second is the web application, the built Flutter app, served on port **5188*
  
 Opening the built app any other way — including `flutter run -d chrome` will load the interface but fail at sign-in, because nothing proxies the API and the page's Content-Security-Policy blocks Flutter's debug mode.
  
-**There is no hosted instance, everything runs on one machine.**
+**There is no hosted instance because everything runs on one machine.**
 
 
 ## 2. What you need
@@ -32,7 +32,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 This affects your user account only.
 
-## 3. First-time setup
+## 3. First time setup
 
 Clone the repository. **Do not download it as a ZIP**, because the build reads Git metadata, and you will not be able to pull changes.
 
@@ -84,20 +84,21 @@ The seed script refuses to run against anything other than the local emulator, s
 
 ### On Terminal 3, build and serve the app
 
+On Windows, build in two steps. Node cannot execute a `.bat` file directly, so the build script cannot invoke Flutter for you
+
 ```powershell
 cd <repository root>
-$env:FLUTTER_BIN="C:\flutter\bin\flutter.bat"
-node scripts\build-pwa.mjs
+flutter build web --release --pwa-strategy=none
+node scripts\build-pwa.mjs --package-only
 node scripts\serve-pwa.mjs
 ```
-Adjust `FLUTTER_BIN` to wherever Flutter is installed on your machine. The build script has a developer's own path as its default, so without this variable it will fail to find Flutter.
 
-> If you don't want to see the variable, run the Flutter build yourself and then package what it produced:
+On **macOS and Linux** the script can invoke Flutter itself, provided `flutter` is on your PATH or `FLUTTER_BIN` points at the executable
 
-> ```powershell
-> flutter build web --release --pwa-strategy=none
-> node scripts\build-pwa.mjs --package-only
-> ```
+```bash
+node scripts/build-pwa.mjs
+node scripts/serve-pwa.mjs
+```
 
 Open <http://127.0.0.1:5188>.
 
@@ -135,7 +136,7 @@ If you changed any Dart file, or anything under `web/` — `pilot.js`, `local_se
 If you changed anything under `backend/`, restart the backend with `pnpm api`. If you changed `backend/scripts/seed.mjs`, re-run `pnpm seed` as well.
 `serve-pwa.mjs` reads files from disk on each request, so it does **not** need restarting after a rebuild — but see the service worker note in troubleshooting, because the browser may still serve you the previous version.
 
-## 8. Troubleshooting
+## Troubleshooting
 
 **The app shows an old version after rebuilding.**
 
@@ -150,22 +151,22 @@ The backend on 8787 is not running, or the emulators it depends on are not.
 
 One of the two environment variables is missing. In PowerShell they must be on separate lines from the command.
 
-**`pnpm` is not recognised, or scripts are disabled.**
+**`pnpm` is not recognised or scripts are disabled.**
 
 See the execution policy step in section 2.
 
-**Flutter is not found when running `build-pwa.mjs`.**
+**`build-pwa.mjs` can't start Flutter.**
 
-Make sure to set `FLUTTER_BIN`, or use the `--package-only` route in section 4.
+On Windows this fails with `ENOENT` or `EINVAL` whatever you set, because Node refuses to execute a `.bat` file without a shell. Use the two step build in section 4. On macOS and Linux, put `flutter` on your PATH or set `FLUTTER_BIN`.
 
-**Sign-in fails although the backend is running.**
+**Sign-in fails even though the backend is running.**
 
 Check you opened <http://127.0.0.1:5188> and not a `flutter run` address. Only `serve-pwa.mjs` proxies the API.
 
 **Voice entry says a speech model is not installed.**
 Voice recognition runs entirely on the device, with no cloud service. The browser must have an English speech model installed. This prompt can reappear in later sessions on the same machine.
 
-## 9. Known limitations
+## Known limitations
 
 - **Not deployed.** There is no hosted instance and no download link. The application must be run on a prepared machine as described above.
 - **The database is an emulator.** Data does not survive restarting the emulators, and must be re-seeded.
