@@ -123,29 +123,29 @@ class SettingsList extends StatelessWidget {
         if (on) row(Icons.lock_outline, 'Safety limits', onSafety),
         row(Icons.list_alt, 'Categories', () => onOpen('Categories')),
         row(Icons.storefront_outlined, 'Shops', () => onOpen('Shops')),
-        if (model.isCarer)
-          row(Icons.logout, 'Sign out of this phone', () async {
-            final ok = await showDialog<bool>(
-              context: context,
-              builder: (c) => AlertDialog(
-                title: const Text('Sign out of this phone?'),
-                content: const Text(
-                  'The person you help will need to sign in again.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(c, false),
-                    child: const Text('Stay signed in'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(c, true),
-                    child: const Text('Sign out'),
-                  ),
-                ],
+        row(Icons.logout, 'Log out', () async {
+          final ok = await showDialog<bool>(
+            context: context,
+            builder: (c) => AlertDialog(
+              title: const Text('Log out?'),
+              content: const Text(
+                'You will need to sign in again with your phone number. '
+                'Your lists are kept.',
               ),
-            );
-            if (ok == true) model.signOut();
-          }),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(c, false),
+                  child: const Text('Stay logged in'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(c, true),
+                  child: const Text('Log out'),
+                ),
+              ],
+            ),
+          );
+          if (ok == true) model.signOut();
+        }),
       ],
     );
   }
@@ -525,6 +525,18 @@ class _DisplaySettingsState extends State<DisplaySettings> {
         const SizedBox(height: 20),
         for (final (value, label) in options) choice(value, label, current),
         const SizedBox(height: 24),
+        words('List layout', 20, weight: 800),
+        const SizedBox(height: 8),
+        words(
+          'Choose how the items on your list look. '
+          'You can also change this on the list page.',
+          15,
+          color: muted,
+        ),
+        const SizedBox(height: 20),
+        layoutChoice(false, 'Pictures', 'A big picture for each item'),
+        layoutChoice(true, 'Plain list', 'Simple rows with no pictures'),
+        const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(18),
           decoration: box(color: pale, radius: 16),
@@ -539,6 +551,50 @@ class _DisplaySettingsState extends State<DisplaySettings> {
           ),
         ),
       ],
+    );
+  }
+
+  void pickLayout(bool plain) {
+    widget.model.setPlainList(plain);
+    setState(() {});
+  }
+
+  Widget layoutChoice(bool plain, String title, String hint) {
+    final on = widget.model.plainList == plain;
+    return Tap(
+      label: '$title layout',
+      checked: on,
+      onTap: () => pickLayout(plain),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 64),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: box(
+          color: on ? pale : Colors.white,
+          radius: 16,
+          border: on ? green : line,
+          thickness: on ? 2 : 1,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              on ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              size: 26,
+              color: on ? green : muted,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  words(title, 17, weight: on ? 800 : 500),
+                  words(hint, 14, color: muted),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

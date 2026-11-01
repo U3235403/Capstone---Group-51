@@ -1886,7 +1886,7 @@ class _WireframeHomeState extends State<WireframeHome> {
   }
 
   Widget _fullList() {
-    ensurePhotos();
+    if (!model.plainList) ensurePhotos();
     final q = listSearch.text.trim().toLowerCase();
     int order(ShoppingItem x, ShoppingItem y) => switch (sortBy) {
       'Newest at the top' => y.id.compareTo(x.id),
@@ -1951,6 +1951,12 @@ class _WireframeHomeState extends State<WireframeHome> {
                   listReordered,
               () => setState(() => sortOpen = !sortOpen),
             ),
+            topPill(
+              model.plainList ? Icons.grid_view : Icons.view_list,
+              model.plainList ? 'Picture view' : 'List view',
+              false,
+              () => model.setPlainList(!model.plainList),
+            ),
             if (model.items.any((i) => i.purchased))
               topPill(Icons.delete_outline, 'Clear Purchase History', false,
                   clearPurchased),
@@ -1987,45 +1993,56 @@ class _WireframeHomeState extends State<WireframeHome> {
             ],
           ),
           const SizedBox(height: 14),
-          for (var k = 0; k < sections[n]!.length; k += 2) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: itemTile(sections[n]![k])),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: k + 1 < sections[n]!.length
-                      ? itemTile(sections[n]![k + 1])
-                      : const SizedBox(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-          ],
+          ...itemLayout(sections[n]!),
           const SizedBox(height: 14),
         ],
         if (purchased.isNotEmpty) ...[
           const SizedBox(height: 8),
           listDivider('PURCHASED (${purchased.length})', muted),
           const SizedBox(height: 14),
-          for (var k = 0; k < purchased.length; k += 2) ...[
+          ...itemLayout(purchased),
+        ],
+      ],
+    );
+  }
+
+  // Items as picture tiles (two per row) or as plain rows, per the setting.
+  List<Widget> itemLayout(List<ShoppingItem> list) => model.plainList
+      ? [
+          for (final it in list) ...[
+            plainRow(it),
+            const SizedBox(height: 12),
+          ],
+        ]
+      : [
+          for (var k = 0; k < list.length; k += 2) ...[
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: itemTile(purchased[k])),
+                Expanded(child: itemTile(list[k])),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: k + 1 < purchased.length
-                      ? itemTile(purchased[k + 1])
+                  child: k + 1 < list.length
+                      ? itemTile(list[k + 1])
                       : const SizedBox(),
                 ),
               ],
             ),
             const SizedBox(height: 14),
           ],
-        ],
-      ],
-    );
+        ];
+
+  // Ticks an item as got, or puts it back on the list.
+  void tickItem(ShoppingItem item) {
+    final wasToBuy = !item.purchased;
+    if (model.toggle(item)) {
+      if (wasToBuy) model.logHabit(item.name);
+    } else {
+      setState(
+        () => notice =
+            'The quantity limit prevents returning this item to your list.',
+      );
+    }
   }
 
   // Confirms, then removes one item from the list.
@@ -2147,6 +2164,105 @@ class _WireframeHomeState extends State<WireframeHome> {
     ),
   );
 
+  // Plain list row, no picture: tick on the left, amount and remove on the right.
+  Widget plainRow(ShoppingItem item) {
+    final who = model.assigneeOf(item.id), shop = model.storeOf(item.id);
+    final added = WireframeModel.niceDate(model.addedOn[item.id]);
+    final got = WireframeModel.niceDate(model.gotOn[item.id]);
+    final extra = [
+      if (who.isNotEmpty) 'For $who',
+      if (shop.isNotEmpty) 'At $shop',
+    ].join(' · ');
+    final amount =
+        'x${item.quantity}${item.unit.isEmpty || item.unit == 'items' ? '' : ' ${item.unit}'}';
+    return Tap(
+      label: 'Edit ${item.name}',
+      onTap: () => details(item.name, item),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+        decoration: box(
+          radius: 22,
+          color: item.purchased ? pale : Colors.white,
+        ),
+        child: Row(
+          children: [
+            Tap(
+              label: 'Mark ${item.name} ${item.purchased ? 'to buy' : 'got'}',
+              checked: item.purchased,
+              onTap: () => tickItem(item),
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: item.purchased ? green : Colors.white,
+                  border: Border.all(color: green, width: 3),
+                ),
+                child: item.purchased
+                    ? const Icon(Icons.check, color: Colors.white, size: 28)
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  words(
+                    item.name,
+                    19,
+                    weight: 800,
+                    color: item.purchased ? muted : ink,
+                    strike: item.purchased,
+                  ),
+                  if (extra.isNotEmpty)
+                    words(extra, 14, weight: 600, color: muted),
+                  if (added.isNotEmpty)
+                    words(
+                      item.purchased && got.isNotEmpty
+                          ? 'Added $added · Got $got'
+                          : 'Added $added',
+                      13,
+                      weight: 600,
+                      color: muted,
+                    ),
+                  if (!item.purchased && model.ruleFor(item.name) != null) ...[
+                    const SizedBox(height: 6),
+                    limitBadge(model.ruleFor(item.name)!.maximum),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: box(radius: 14, color: pale, border: null),
+              child: words(amount, 16, weight: 800),
+            ),
+            Tap(
+              label: 'Remove ${item.name} from my list',
+              onTap: () => removeFromList(item),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    border: Border.all(color: line, width: 2),
+                  ),
+                  child: const Icon(Icons.close,
+                      size: 22, color: Color(0xffb8665d)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Item picture tile: tick bottom right, amount top left.
   Widget itemTile(ShoppingItem item) {
     final tint = sectionColour(item.category).withValues(alpha:.14);
@@ -2215,17 +2331,7 @@ class _WireframeHomeState extends State<WireframeHome> {
                     label:
                         'Mark ${item.name} ${item.purchased ? 'to buy' : 'got'}',
                     checked: item.purchased,
-                    onTap: () {
-                      final wasToBuy = !item.purchased;
-                      if (model.toggle(item)) {
-                        if (wasToBuy) model.logHabit(item.name);
-                      } else {
-                        setState(
-                          () => notice =
-                              'The quantity limit prevents returning this item to your list.',
-                        );
-                      }
-                    },
+                    onTap: () => tickItem(item),
                     child: Container(
                       width: 54,
                       height: 54,

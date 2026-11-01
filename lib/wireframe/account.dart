@@ -23,9 +23,11 @@ class AccountSetup extends StatefulWidget {
 }
 
 class _AccountSetupState extends State<AccountSetup> {
-  // 0 welcome, 1 who, 2 phone, 3 code, 4 name, 5 link, 6 done
+  // 0 welcome, 1 who, 2 phone, 3 code, 4 name, 5 link, 6 list look, 7 done
   int step = 0;
   String role = '';
+  // List look: picture tiles (false) or a plain list (true).
+  bool plainChoice = false;
   String? problem;
   bool busy = false;
   final phone = TextEditingController();
@@ -95,6 +97,7 @@ class _AccountSetupState extends State<AccountSetup> {
 
   void finish() {
     TextInput.finishAutofillContext();
+    widget.model.plainList = plainChoice;
     widget.model.signIn(
       role: role,
       phone: phone.text.trim(),
@@ -117,7 +120,7 @@ class _AccountSetupState extends State<AccountSetup> {
               child: ListView(
               padding: const EdgeInsets.fromLTRB(32, 40, 32, 48),
               children: [
-                if (step > 0 && step < 6) ...[backButton(), const SizedBox(height: 28)],
+                if (step > 0 && step < 7) ...[backButton(), const SizedBox(height: 28)],
                 ...switch (step) {
                   0 => welcome(),
                   1 => who(),
@@ -125,6 +128,7 @@ class _AccountSetupState extends State<AccountSetup> {
                   3 => codeStep(),
                   4 => nameStep(),
                   5 => linkStep(),
+                  6 => layoutStep(),
                   _ => doneStep(),
                 },
               ],
@@ -437,6 +441,61 @@ class _AccountSetupState extends State<AccountSetup> {
             go(6);
           }, outline: true),
         ];
+
+  Widget layoutCard(bool plain, IconData icon, String title, String sub) => Tap(
+    label: title,
+    checked: plainChoice == plain,
+    onTap: () => setState(() => plainChoice = plain),
+    child: Container(
+      padding: const EdgeInsets.all(24),
+      decoration: box(
+        radius: 24,
+        color: plainChoice == plain ? pale : Colors.white,
+        border: plainChoice == plain ? green : line,
+        thickness: 2,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: box(color: Colors.white, radius: 34, border: null),
+            child: Icon(icon, size: 34, color: green),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                words(title, 20, weight: 800),
+                const SizedBox(height: 6),
+                words(sub, 15, weight: 500, color: muted),
+              ],
+            ),
+          ),
+          Icon(
+            plainChoice == plain
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            size: 30,
+            color: plainChoice == plain ? green : muted,
+          ),
+        ],
+      ),
+    ),
+  );
+
+  List<Widget> layoutStep() => [
+    heading(
+      'How should your list look?',
+      'You can change this later in Settings.',
+    ),
+    layoutCard(false, Icons.grid_view, 'Pictures', 'A big picture for each item'),
+    const SizedBox(height: 22),
+    layoutCard(true, Icons.view_list, 'Plain list', 'Simple rows with no pictures'),
+    const SizedBox(height: 40),
+    bigButton('Next', () => go(7)),
+  ];
 
   List<Widget> doneStep() => [
     const SizedBox(height: 40),

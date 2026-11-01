@@ -362,6 +362,14 @@ class WireframeModel extends ChangeNotifier {
     return '${d.day} ${mo[d.month - 1]}';
   }
 
+  // Item layout on the list page: picture tiles (false) or plain rows (true).
+  bool plainList = false;
+
+  void setPlainList(bool value) {
+    plainList = value;
+    save();
+  }
+
   double textScale = 1.0;
 
   void setTextScale(double value) {
@@ -454,6 +462,7 @@ class WireframeModel extends ChangeNotifier {
     'itemFor': itemFor.map((k, v) => MapEntry('$k', v)),
     'listFor': listFor,
     'textScale': textScale,
+    'plainList': plainList,
     'otherLists': otherLists.map(
       (k, v) => MapEntry(k, v.map((i) => i.toJson()).toList()),
     ),
@@ -522,6 +531,7 @@ class WireframeModel extends ChangeNotifier {
         textScale =
             ((j['textScale'] as num?)?.toDouble() ?? 1.0).clamp(1.0, 1.5);
         uiTextScale = textScale;
+        plainList = j['plainList'] as bool? ?? false;
 
         final rawFavs = j['favourites'];
         favourites = rawFavs is List ? rawFavs.whereType<String>().toList() : [];
