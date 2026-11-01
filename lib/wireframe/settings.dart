@@ -123,29 +123,29 @@ class SettingsList extends StatelessWidget {
         if (on) row(Icons.lock_outline, 'Safety limits', onSafety),
         row(Icons.list_alt, 'Categories', () => onOpen('Categories')),
         row(Icons.storefront_outlined, 'Shops', () => onOpen('Shops')),
-        if (model.isCarer)
-          row(Icons.logout, 'Sign out of this phone', () async {
-            final ok = await showDialog<bool>(
-              context: context,
-              builder: (c) => AlertDialog(
-                title: const Text('Sign out of this phone?'),
-                content: const Text(
-                  'The person you help will need to sign in again.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(c, false),
-                    child: const Text('Stay signed in'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(c, true),
-                    child: const Text('Sign out'),
-                  ),
-                ],
+        row(Icons.logout, 'Log out', () async {
+          final ok = await showDialog<bool>(
+            context: context,
+            builder: (c) => AlertDialog(
+              title: const Text('Log out?'),
+              content: const Text(
+                'Your lists are kept. '
+                'You can sign in again with one tap.',
               ),
-            );
-            if (ok == true) model.signOut();
-          }),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(c, false),
+                  child: const Text('Stay logged in'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(c, true),
+                  child: const Text('Log out'),
+                ),
+              ],
+            ),
+          );
+          if (ok == true) model.signOut();
+        }),
       ],
     );
   }
@@ -517,12 +517,50 @@ class _DisplaySettingsState extends State<DisplaySettings> {
         words('Text size', 20, weight: 800),
         const SizedBox(height: 8),
         words(
-          'Pick the size that is easiest for you to read. ',
+          'Pick the size that is easiest for you to read. '
+          'The whole app changes straight away.',
           15,
           color: muted,
         ),
         const SizedBox(height: 20),
         for (final (value, label) in options) choice(value, label, current),
+        const SizedBox(height: 24),
+        words('List layout', 20, weight: 800),
+        const SizedBox(height: 8),
+        words(
+          'Choose how the items on your list look. '
+          'You can also change this on the list page.',
+          15,
+          color: muted,
+        ),
+        const SizedBox(height: 20),
+        layoutChoice(false, 'Pictures', 'A big picture for each item'),
+        layoutChoice(true, 'Plain list', 'Simple rows with no pictures'),
+        const SizedBox(height: 24),
+        words('Colours', 20, weight: 800),
+        const SizedBox(height: 8),
+        words(
+          'Changes the colours of the whole app, so greens become blues '
+          'and are easier to tell apart from reds.',
+          15,
+          color: muted,
+        ),
+        const SizedBox(height: 20),
+        colourChoice(false, 'Normal colours', 'Green, blue, gold, red'),
+        colourChoice(true, 'Colour-blind friendly', 'Blue, orange, pink, yellow'),
+        const SizedBox(height: 24),
+        words('High contrast', 20, weight: 800),
+        const SizedBox(height: 8),
+        words(
+          'Makes text, borders and colours darker so they stand out more.',
+          15,
+          color: muted,
+        ),
+        const SizedBox(height: 20),
+        onOff(!widget.model.highContrast, 'Off', '',
+            () => widget.model.setHighContrast(false)),
+        onOff(widget.model.highContrast, 'On', '',
+            () => widget.model.setHighContrast(true)),
         const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(18),
@@ -538,6 +576,143 @@ class _DisplaySettingsState extends State<DisplaySettings> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget onOff(bool on, String title, String hint, VoidCallback act) => Tap(
+        label: title,
+        checked: on,
+        onTap: () {
+          act();
+          setState(() {});
+        },
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 64),
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: box(
+            color: on ? pale : Colors.white,
+            radius: 16,
+            border: on ? green : line,
+            thickness: on ? 2 : 1,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                on ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                size: 26,
+                color: on ? green : muted,
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: words(title, 17, weight: on ? 800 : 500)),
+            ],
+          ),
+        ),
+      );
+
+  void pickColours(bool blind) {
+    widget.model.setColourBlind(blind);
+    setState(() {});
+  }
+
+  Widget colourChoice(bool blind, String title, String hint) {
+    final on = widget.model.colourBlind == blind;
+    final colours = blind
+        ? const [Color(0xff0072b2), Color(0xff56b4e9), Color(0xffe69f00), Color(0xffcc79a7)]
+        : const [Color(0xff5d9a62), Color(0xff4f8fa8), Color(0xffc79a4a), Color(0xffb8665d)];
+    return Tap(
+      label: title,
+      checked: on,
+      onTap: () => pickColours(blind),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 64),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: box(
+          color: on ? pale : Colors.white,
+          radius: 16,
+          border: on ? green : line,
+          thickness: on ? 2 : 1,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              on ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              size: 26,
+              color: on ? green : muted,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  words(title, 17, weight: on ? 800 : 500),
+                  words(hint, 14, color: muted),
+                ],
+              ),
+            ),
+            restoreColours(
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final c in colours)
+                    Container(
+                      width: 18,
+                      height: 18,
+                      margin: const EdgeInsets.only(left: 4),
+                      decoration:
+                          BoxDecoration(color: c, shape: BoxShape.circle),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void pickLayout(bool plain) {
+    widget.model.setPlainList(plain);
+    setState(() {});
+  }
+
+  Widget layoutChoice(bool plain, String title, String hint) {
+    final on = widget.model.plainList == plain;
+    return Tap(
+      label: '$title layout',
+      checked: on,
+      onTap: () => pickLayout(plain),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 64),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: box(
+          color: on ? pale : Colors.white,
+          radius: 16,
+          border: on ? green : line,
+          thickness: on ? 2 : 1,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              on ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              size: 26,
+              color: on ? green : muted,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  words(title, 17, weight: on ? 800 : 500),
+                  words(hint, 14, color: muted),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -568,6 +743,137 @@ class _DisplaySettingsState extends State<DisplaySettings> {
             Expanded(child: words(label, 17, weight: on ? 800 : 500)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// Categories: the shop sections items are grouped into.
+class CategorySettings extends StatefulWidget {
+  const CategorySettings({super.key, required this.model});
+  final WireframeModel model;
+  @override
+  State<CategorySettings> createState() => _CategorySettingsState();
+}
+
+class _CategorySettingsState extends State<CategorySettings> {
+  final text = TextEditingController();
+  String? problem;
+
+  @override
+  void dispose() {
+    text.dispose();
+    super.dispose();
+  }
+
+  void add() {
+    final p = widget.model.addCategory(text.text);
+    setState(() => problem = p);
+    if (p == null) text.clear();
+  }
+
+  Future<void> remove(String c) async {
+    final n = widget.model.itemsIn(c);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text('Remove $c?'),
+        content: Text(
+          n == 0
+              ? 'No items use this category.'
+              : 'Items in $c move to Other. Nothing is deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(d, false),
+            child: const Text('Keep it'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(d, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) setState(() => widget.model.removeCategory(c));
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        children: [
+          words('Categories', 20, weight: 800),
+          const SizedBox(height: 8),
+          words(
+            'Items are grouped by category on your list. '
+            'Add your own, for example Cleaning.',
+            15,
+            color: muted,
+          ),
+          const SizedBox(height: 20),
+          for (final c in widget.model.categories) tile(c),
+          const SizedBox(height: 24),
+          words('Add a category', 17, weight: 700),
+          const SizedBox(height: 10),
+          TextField(
+            controller: text,
+            textCapitalization: TextCapitalization.sentences,
+            onSubmitted: (_) => add(),
+            decoration: const InputDecoration(
+              labelText: 'Category name',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          if (problem != null) ...[
+            const SizedBox(height: 8),
+            Semantics(
+              liveRegion: true,
+              child: words(problem!, 14, color: Colors.red),
+            ),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 56,
+            child: FilledButton(
+              onPressed: add,
+              child: words('Add this category', 17, weight: 700,
+                  color: Colors.white),
+            ),
+          ),
+        ],
+      );
+
+  Widget tile(String c) {
+    final custom = widget.model.customCategories.contains(c);
+    final count = widget.model.itemsIn(c);
+    return Container(
+      constraints: const BoxConstraints(minHeight: 64),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: box(radius: 16),
+      child: Row(
+        children: [
+          const Icon(Icons.list_alt, size: 26, color: green),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                words(c, 17, weight: 700),
+                words(count == 1 ? '1 item' : '$count items', 14, color: muted),
+              ],
+            ),
+          ),
+          if (custom)
+            Tap(
+              label: 'Remove $c',
+              onTap: () => remove(c),
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(Icons.close, size: 24, color: muted),
+              ),
+            ),
+        ],
       ),
     );
   }

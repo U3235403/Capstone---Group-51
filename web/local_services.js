@@ -1,4 +1,7 @@
-/* Local-only services. No fetch, cloud speech, analytics or remote endpoints. */
+/* Local services. No fetch, analytics or remote endpoints.
+   Voice entry uses an on-device speech model when one is installed,
+   otherwise the browser's own speech service (which may send audio to the
+   browser provider). */
 (() => {
   'use strict';
   const slot = 'sav.shopping.v1';
@@ -65,15 +68,19 @@
   async function voice() {
     const generation = ++voiceGeneration;
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Speech || !('processLocally' in Speech.prototype) || typeof Speech.available !== 'function')
-      throw Error('Offline voice entry is unavailable in this browser. Please type the item name.');
-    const status = await Speech.available({langs:['en-US'],processLocally:true});
+    if (!Speech)
+      throw Error('Voice entry is unavailable in this browser. Please type the item name.');
+    // Use the on-device model if there is one, otherwise the browser default.
+    let local = false;
+    if ('processLocally' in Speech.prototype && typeof Speech.available === 'function') {
+      try { local = (await Speech.available({langs:['en-US'],processLocally:true})) === 'available'; }
+      catch (_) { local = false; }
+    }
     if (generation !== voiceGeneration) throw Error('Voice entry cancelled. You can type instead.');
-    if (status !== 'available') throw Error('An on-device English speech model is not installed. No cloud recognition will be used.');
     return new Promise((resolve,reject) => {
       recognition = new Speech();
-      recognition.processLocally = true;
-      recognition.lang = 'en-US';
+      if (local) recognition.processLocally = true;
+      recognition.lang = local ? 'en-US' : 'en-AU';
       recognition.continuous = false;
       recognition.interimResults = false;
       let settled = false;
@@ -87,7 +94,9 @@
       };
       const timer = setTimeout(() => { recognition?.abort(); finish('', 'No speech received. Try again or type the item.'); },20000);
       recognition.onresult = event => finish(event.results[0][0].transcript);
-      recognition.onerror = event => finish('', 'Voice entry stopped (' + event.error + '). You can type instead.');
+      recognition.onerror = event => finish('', event.error === 'not-allowed' || event.error === 'service-not-allowed'
+        ? 'The microphone is blocked. Allow the microphone for this site, or type the item.'
+        : 'Voice entry stopped (' + event.error + '). You can type instead.');
       recognition.onend = () => finish('', 'No speech received. You can type instead.');
       recognition.start();
     });

@@ -23,9 +23,11 @@ class AccountSetup extends StatefulWidget {
 }
 
 class _AccountSetupState extends State<AccountSetup> {
-  // 0 welcome, 1 who, 2 phone, 3 code, 4 name, 5 link, 6 done
+  // 0 welcome, 1 who, 2 phone, 3 code, 4 name, 5 link, 6 list look, 7 done
   int step = 0;
   String role = '';
+  // List look: picture tiles (false) or a plain list (true).
+  bool plainChoice = false;
   String? problem;
   bool busy = false;
   final phone = TextEditingController();
@@ -45,10 +47,15 @@ class _AccountSetupState extends State<AccountSetup> {
   String get cleanPhone => phone.text.replaceAll(RegExp(r'[^0-9+]'), '');
   int get digitCount => cleanPhone.replaceAll('+', '').length;
 
-  void go(int next) => setState(() {
-    problem = null;
-    step = next;
-  });
+  void go(int next) {
+    // Release the old text box and autofill session before changing step.
+    FocusManager.instance.primaryFocus?.unfocus();
+    TextInput.finishAutofillContext(shouldSave: false);
+    setState(() {
+      problem = null;
+      step = next;
+    });
+  }
 
   Future<void> sendCode() async {
     if (digitCount < 8 || digitCount > 15) {
@@ -95,6 +102,7 @@ class _AccountSetupState extends State<AccountSetup> {
 
   void finish() {
     TextInput.finishAutofillContext();
+    widget.model.plainList = plainChoice;
     widget.model.signIn(
       role: role,
       phone: phone.text.trim(),
@@ -117,7 +125,7 @@ class _AccountSetupState extends State<AccountSetup> {
               child: ListView(
               padding: const EdgeInsets.fromLTRB(32, 40, 32, 48),
               children: [
-                if (step > 0 && step < 6) ...[backButton(), const SizedBox(height: 28)],
+                if (step > 0 && step < 7) ...[backButton(), const SizedBox(height: 28)],
                 ...switch (step) {
                   0 => welcome(),
                   1 => who(),
@@ -125,6 +133,7 @@ class _AccountSetupState extends State<AccountSetup> {
                   3 => codeStep(),
                   4 => nameStep(),
                   5 => linkStep(),
+                  6 => layoutStep(),
                   _ => doneStep(),
                 },
               ],
@@ -205,6 +214,10 @@ class _AccountSetupState extends State<AccountSetup> {
     alignment: Alignment.center,
     decoration: box(radius: 22, border: green, thickness: 2),
     child: TextField(
+      // A key per field makes each step get a fresh text box, so the
+      // keyboard does not stay attached to the previous step's box.
+      key: ValueKey(c),
+      autofocus: true,
       controller: c,
       autofillHints: hints,
       keyboardType: keyboard,
@@ -438,6 +451,61 @@ class _AccountSetupState extends State<AccountSetup> {
           }, outline: true),
         ];
 
+  Widget layoutCard(bool plain, IconData icon, String title, String sub) => Tap(
+    label: title,
+    checked: plainChoice == plain,
+    onTap: () => setState(() => plainChoice = plain),
+    child: Container(
+      padding: const EdgeInsets.all(24),
+      decoration: box(
+        radius: 24,
+        color: plainChoice == plain ? pale : Colors.white,
+        border: plainChoice == plain ? green : line,
+        thickness: 2,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: box(color: Colors.white, radius: 34, border: null),
+            child: Icon(icon, size: 34, color: green),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                words(title, 20, weight: 800),
+                const SizedBox(height: 6),
+                words(sub, 15, weight: 500, color: muted),
+              ],
+            ),
+          ),
+          Icon(
+            plainChoice == plain
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            size: 30,
+            color: plainChoice == plain ? green : muted,
+          ),
+        ],
+      ),
+    ),
+  );
+
+  List<Widget> layoutStep() => [
+    heading(
+      'How should your list look?',
+      'You can change this later in Settings.',
+    ),
+    layoutCard(false, Icons.grid_view, 'Pictures', 'A big picture for each item'),
+    const SizedBox(height: 22),
+    layoutCard(true, Icons.view_list, 'Plain list', 'Simple rows with no pictures'),
+    const SizedBox(height: 40),
+    bigButton('Next', () => go(7)),
+  ];
+
   List<Widget> doneStep() => [
     const SizedBox(height: 40),
     Center(
@@ -660,4 +728,87 @@ class _AccountDetailsState extends State<AccountDetails> {
       ],
     ),
   );
+}
+
+// Shown after Log out. The account is saved, so one tap signs in.
+class WelcomeBack extends StatelessWidget {
+  const WelcomeBack({super.key, required this.model});
+  final WireframeModel model;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = model.accountName.trim();
+    return Scaffold(
+      backgroundColor: ink,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(40),
+            child: ColoredBox(
+              color: paper,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(32, 80, 32, 48),
+                children: [
+                  words(name.isEmpty ? 'Welcome back' : 'Welcome back, $name', 30,
+                      weight: 800),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Your lists are ready.',
+                    style: type(17, 500, muted).copyWith(height: 1.4),
+                  ),
+                  const SizedBox(height: 40),
+                  Tap(
+                    label: 'Sign in',
+                    onTap: model.signBackIn,
+                    child: Container(
+                      height: 84,
+                      alignment: Alignment.center,
+                      decoration: box(color: green, radius: 42, border: null),
+                      child: words('Sign in', 20,
+                          weight: 800, color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Tap(
+                    label: 'Not you? Set up a different account',
+                    onTap: () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (d) => AlertDialog(
+                          title: const Text('Set up a different account?'),
+                          content: const Text(
+                            'The saved name and phone number are removed. '
+                            'Your lists are kept.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(d, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(d, true),
+                              child: const Text('Continue'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (ok == true) model.forgetAccount();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Center(
+                        child: words('Not you? Set up a different account', 16,
+                            weight: 700, color: green),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

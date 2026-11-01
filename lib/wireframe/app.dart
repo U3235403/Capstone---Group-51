@@ -626,6 +626,52 @@ IconData iconFor(String name) {
   return Icons.shopping_basket;
 }
 
+// Colour-blind mode swaps the green and blue channels of the whole app.
+// Greys, black and white stay the same; greens become blues.
+// High contrast darkens everything except white.
+// Both are simple maths on the colour channels, so the same filter run
+// backwards gives the original colours. Pictures are wrapped in the
+// backwards filter to keep their true colours.
+List<double> _colourMatrix(bool swap, bool contrast, {bool undo = false}) {
+  final k = contrast ? 1.36 : 1.0;
+  final b = contrast ? -88.0 : 0.0;
+  final out = <double>[];
+  for (var i = 0; i < 3; i++) {
+    final from = swap && i > 0 ? 3 - i : i;
+    final row = List<double>.filled(5, 0);
+    row[from] = undo ? 1 / k : k;
+    row[4] = undo ? -b / k : b;
+    out.addAll(row);
+  }
+  out.addAll(const [0, 0, 0, 1, 0]);
+  return out;
+}
+
+ColorFilter _appFilter(bool swap, bool contrast, {bool undo = false}) =>
+    swap || contrast
+        ? ColorFilter.matrix(_colourMatrix(swap, contrast, undo: undo))
+        : const ColorFilter.mode(Colors.transparent, BlendMode.dst);
+
+Widget restoreColours(Widget child) => ListenableBuilder(
+  listenable: Listenable.merge([colourBlindMode, highContrastMode]),
+  builder: (context, _) => colourBlindMode.value || highContrastMode.value
+      ? ColorFiltered(
+          colorFilter: _appFilter(
+            colourBlindMode.value,
+            highContrastMode.value,
+            undo: true,
+          ),
+          child: child,
+        )
+      : child,
+);
+
+// Colour that shows as `c` once the swap is applied.
+Color _preSwap(Color c) {
+  final r = (c.r * 255).round(), g = (c.g * 255).round(), b = (c.b * 255).round();
+  return Color.fromARGB(255, r, b, g);
+}
+
 // Square item picture: the user's photo if set, otherwise the icon.
 Widget itemPicture(String name, String? photo, double size) {
   size = size * 1.25;
@@ -650,24 +696,24 @@ Widget itemPicture(String name, String? photo, double size) {
         color: bytes == null && bundled == null ? pale : Colors.white,
         alignment: Alignment.center,
         child: bundled != null
-            ? Image.asset(
+            ? restoreColours(Image.asset(
                 bundled,
                 width: size,
                 height: size,
                 fit: BoxFit.contain,
                 gaplessPlayback: true,
                 errorBuilder: (context, error, stack) => fallback,
-              )
+              ))
             : bytes == null
             ? fallback
-            : Image.memory(
+            : restoreColours(Image.memory(
                 bytes,
                 width: size,
                 height: size,
                 fit: BoxFit.contain,
                 gaplessPlayback: true,
                 errorBuilder: (context, error, stack) => fallback,
-              ),
+              )),
       ),
     ),
   );
@@ -737,10 +783,36 @@ class WireframeApp extends StatelessWidget {
     // width so proportions are the same on every device.
     builder: (context, child) {
       final mq = MediaQuery.of(context);
+      // Desktop: real pixels, no scaling. The page adds its own side menu.
+      if (mq.size.width >= desktopWidth) {
+        return ListenableBuilder(
+          listenable: Listenable.merge([colourBlindMode, highContrastMode]),
+          builder: (context, _) => ColorFiltered(
+            colorFilter: _appFilter(
+              colourBlindMode.value,
+              highContrastMode.value,
+            ),
+            child: ColoredBox(
+              color: paper,
+              child: MediaQuery(
+                data: mq.copyWith(textScaler: TextScaler.noScaling),
+                child: child ?? const SizedBox(),
+              ),
+            ),
+          ),
+        );
+      }
       final width = math.min(mq.size.width, 560.0);
       final scale = width / designWidth;
       final inner = Size(designWidth, mq.size.height / scale);
-      return ColoredBox(
+      return ListenableBuilder(
+        listenable: Listenable.merge([colourBlindMode, highContrastMode]),
+        builder: (context, _) => ColorFiltered(
+          colorFilter: _appFilter(
+            colourBlindMode.value,
+            highContrastMode.value,
+          ),
+          child: ColoredBox(
         color: ink,
         child: Center(
           child: SizedBox(
@@ -765,6 +837,8 @@ class WireframeApp extends StatelessWidget {
             ),
           ),
         ),
+      ),
+        ),
       );
     },
     home: WireframeHome(model: model, initialScreen: initialScreen),
@@ -772,6 +846,8 @@ class WireframeApp extends StatelessWidget {
 }
 
 const double designWidth = 480;
+// Windows at least this wide get the desktop layout with a side menu.
+const double desktopWidth = 900;
 
 class WireframeHome extends StatefulWidget {
   const WireframeHome({super.key, this.model, required this.initialScreen});
@@ -1226,18 +1302,19 @@ class _WireframeHomeState extends State<WireframeHome> {
   };
   @override
   Widget build(BuildContext context) {
-    // First launch: account setup (once).
+    // First launch: account setup (once). After Log out: quick sign in.
     if (model.ready && !model.signedIn) return AccountSetup(model: model);
+    if (model.ready && model.signedOut) return WelcomeBack(model: model);
     return mainScaffold(context);
   }
 
-  Widget mainScaffold(BuildContext context) => Scaffold(
-    backgroundColor: ink,
-    body: Center(
+  Widget mainScaffold(BuildContext context) {
+    final wide = MediaQuery.of(context).size.width >= desktopWidth;
+    final page = Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
+        constraints: BoxConstraints(maxWidth: wide ? 840 : 560),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(40),
+          borderRadius: BorderRadius.circular(wide ? 0 : 40),
           child: ColoredBox(
             color: paper,
             child: Stack(
@@ -1307,7 +1384,8 @@ class _WireframeHomeState extends State<WireframeHome> {
                                           AccountDetails(model: model, onDone: () => go('settings')),
                                         'Household' => HouseholdSettings(model: model),
                                         'Shops' => ShopSettings(model: model),
-                                        'Display' => DisplaySettings(model: model),  
+                                        'Display' => DisplaySettings(model: model),
+                                        'Categories' => CategorySettings(model: model),  
                                         _ => SettingsComingSoon(title: settingsPage),
 
                                       },
@@ -1331,8 +1409,68 @@ class _WireframeHomeState extends State<WireframeHome> {
           ),
         ),
       ),
-    ),
-  );
+    );
+    return Scaffold(
+      backgroundColor: wide ? paper : ink,
+      body: wide
+          ? Row(children: [sideMenu(), Expanded(child: page)])
+          : page,
+    );
+  }
+
+  // Desktop side menu.
+  Widget sideMenu() {
+    Widget entry(IconData icon, String text, String target, List<String> on) {
+      final here = on.contains(screen);
+      return Tap(
+        label: text,
+        onTap: () => go(target),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: here ? Colors.white.withValues(alpha: .16) : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 22, color: Colors.white),
+              const SizedBox(width: 14),
+              Expanded(
+                child: words(text, 16,
+                    weight: here ? 800 : 500, color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: 270,
+      color: greenDeep,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 0, 28, 20),
+            child: words('Shopping List', 21, weight: 800, color: Colors.white),
+          ),
+          entry(Icons.home_outlined, 'Home', 'home', ['home']),
+          entry(Icons.checklist, 'My shopping list', 'list',
+              ['list', 'add', 'details']),
+          entry(Icons.folder_open, 'My lists', 'lists', ['lists']),
+          entry(Icons.star_border, 'Favourites and suggestions', 'catalogue',
+              ['catalogue']),
+          entry(Icons.history, 'Past items', 'past', ['past']),
+          entry(Icons.settings_outlined, 'Settings', 'settings',
+              ['settings', 'page', 'limits', 'safety']),
+        ],
+      ),
+    );
+  }
+
   Widget statusBar() => ExcludeSemantics(
     child: SizedBox(
       height: 57,
@@ -1886,7 +2024,7 @@ class _WireframeHomeState extends State<WireframeHome> {
   }
 
   Widget _fullList() {
-    ensurePhotos();
+    if (!model.plainList) ensurePhotos();
     final q = listSearch.text.trim().toLowerCase();
     int order(ShoppingItem x, ShoppingItem y) => switch (sortBy) {
       'Newest at the top' => y.id.compareTo(x.id),
@@ -1916,7 +2054,7 @@ class _WireframeHomeState extends State<WireframeHome> {
     for (final i in buying) {
       sections.putIfAbsent(i.category, () => []).add(i);
     }
-    const order0 = ['Produce', 'Dairy & Eggs', 'Bakery', 'Meat', 'Pantry', 'Other'];
+    final order0 = model.categories;
     final names = sections.keys.toList()
       ..sort((x, y) {
         int rank(String n) {
@@ -1951,6 +2089,12 @@ class _WireframeHomeState extends State<WireframeHome> {
                   listReordered,
               () => setState(() => sortOpen = !sortOpen),
             ),
+            topPill(
+              model.plainList ? Icons.grid_view : Icons.view_list,
+              model.plainList ? 'Picture view' : 'List view',
+              false,
+              () => model.setPlainList(!model.plainList),
+            ),
             if (model.items.any((i) => i.purchased))
               topPill(Icons.delete_outline, 'Clear Purchase History', false,
                   clearPurchased),
@@ -1974,58 +2118,70 @@ class _WireframeHomeState extends State<WireframeHome> {
           Row(
             children: [
               Container(
-                width: 16,
-                height: 16,
+                width: model.colourBlind ? 26 : 16,
+                height: model.colourBlind ? 26 : 16,
                 decoration: BoxDecoration(
                   color: sectionColour(n),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(model.colourBlind ? 6 : 8),
                 ),
               ),
               const SizedBox(width: 12),
               words('${sectionName(n)} (${sections[n]!.length})', 21,
-                  weight: 800),
+                  weight: 800,
+                  color: model.colourBlind ? sectionColour(n) : ink),
             ],
           ),
           const SizedBox(height: 14),
-          for (var k = 0; k < sections[n]!.length; k += 2) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: itemTile(sections[n]![k])),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: k + 1 < sections[n]!.length
-                      ? itemTile(sections[n]![k + 1])
-                      : const SizedBox(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-          ],
+          ...itemLayout(sections[n]!),
           const SizedBox(height: 14),
         ],
         if (purchased.isNotEmpty) ...[
           const SizedBox(height: 8),
           listDivider('PURCHASED (${purchased.length})', muted),
           const SizedBox(height: 14),
-          for (var k = 0; k < purchased.length; k += 2) ...[
+          ...itemLayout(purchased),
+        ],
+      ],
+    );
+  }
+
+  // Items as picture tiles (two per row) or as plain rows, per the setting.
+  List<Widget> itemLayout(List<ShoppingItem> list) => model.plainList
+      ? [
+          for (final it in list) ...[
+            plainRow(it),
+            const SizedBox(height: 12),
+          ],
+        ]
+      : [
+          for (var k = 0; k < list.length; k += 2) ...[
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: itemTile(purchased[k])),
+                Expanded(child: itemTile(list[k])),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: k + 1 < purchased.length
-                      ? itemTile(purchased[k + 1])
+                  child: k + 1 < list.length
+                      ? itemTile(list[k + 1])
                       : const SizedBox(),
                 ),
               ],
             ),
             const SizedBox(height: 14),
           ],
-        ],
-      ],
-    );
+        ];
+
+  // Ticks an item as got, or puts it back on the list.
+  void tickItem(ShoppingItem item) {
+    final wasToBuy = !item.purchased;
+    if (model.toggle(item)) {
+      if (wasToBuy) model.logHabit(item.name);
+    } else {
+      setState(
+        () => notice =
+            'The quantity limit prevents returning this item to your list.',
+      );
+    }
   }
 
   // Confirms, then removes one item from the list.
@@ -2089,14 +2245,51 @@ class _WireframeHomeState extends State<WireframeHome> {
     _ => category,
   };
 
-  Color sectionColour(String category) => switch (category) {
-    'Produce' => const Color(0xff5d9a62),
-    'Dairy & Eggs' => const Color(0xff4f8fa8),
-    'Bakery' => const Color(0xffc79a4a),
-    'Meat' => const Color(0xffb8665d),
-    'Pantry' => const Color(0xff8c7455),
-    _ => const Color(0xff7f8f80),
-  };
+  // Colour-blind set uses blue, orange, pink and yellow (safe for
+  // the common types of colour blindness).
+  static const _normalColours = [
+    Color(0xff5d9a62),
+    Color(0xff4f8fa8),
+    Color(0xffc79a4a),
+    Color(0xffb8665d),
+    Color(0xff8c7455),
+  ];
+  static const _blindColours = [
+    Color(0xff0072b2),
+    Color(0xff56b4e9),
+    Color(0xffe69f00),
+    Color(0xffcc79a7),
+    Color(0xff7a5c2e),
+  ];
+  static const _normalExtra = [
+    Color(0xff7a6fb0),
+    Color(0xff3f9a8f),
+    Color(0xffb0709a),
+    Color(0xff9a8f3f),
+  ];
+  static const _blindExtra = [
+    Color(0xffd55e00),
+    Color(0xfff0e442),
+    Color(0xff009e73),
+    Color(0xff332288),
+  ];
+
+  Color sectionColour(String category) {
+    final c = _sectionTarget(category);
+    return model.colourBlind ? _preSwap(c) : c;
+  }
+
+  Color _sectionTarget(String category) {
+    final blind = model.colourBlind;
+    final base = WireframeModel.baseCategories.indexOf(category);
+    if (base >= 0) return (blind ? _blindColours : _normalColours)[base];
+    final extra = model.customCategories.indexOf(category);
+    if (extra >= 0) {
+      final list = blind ? _blindExtra : _normalExtra;
+      return list[extra % list.length];
+    }
+    return blind ? const Color(0xff666666) : const Color(0xff7f8f80);
+  }
 
   // Top buttons on the list: Search, Sort and filter.
   Widget topPill(IconData icon, String text, bool active, VoidCallback onTap) =>
@@ -2147,9 +2340,108 @@ class _WireframeHomeState extends State<WireframeHome> {
     ),
   );
 
+  // Plain list row, no picture: tick on the left, amount and remove on the right.
+  Widget plainRow(ShoppingItem item) {
+    final who = model.assigneeOf(item.id), shop = model.storeOf(item.id);
+    final added = WireframeModel.niceDate(model.addedOn[item.id]);
+    final got = WireframeModel.niceDate(model.gotOn[item.id]);
+    final extra = [
+      if (who.isNotEmpty) 'For $who',
+      if (shop.isNotEmpty) 'At $shop',
+    ].join(' · ');
+    final amount =
+        'x${item.quantity}${item.unit.isEmpty || item.unit == 'items' ? '' : ' ${item.unit}'}';
+    return Tap(
+      label: 'Edit ${item.name}',
+      onTap: () => details(item.name, item),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+        decoration: box(
+          radius: 22,
+          color: item.purchased ? pale : Colors.white,
+        ),
+        child: Row(
+          children: [
+            Tap(
+              label: 'Mark ${item.name} ${item.purchased ? 'to buy' : 'got'}',
+              checked: item.purchased,
+              onTap: () => tickItem(item),
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: item.purchased ? green : Colors.white,
+                  border: Border.all(color: green, width: 3),
+                ),
+                child: item.purchased
+                    ? const Icon(Icons.check, color: Colors.white, size: 28)
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  words(
+                    item.name,
+                    19,
+                    weight: 800,
+                    color: item.purchased ? muted : ink,
+                    strike: item.purchased,
+                  ),
+                  if (extra.isNotEmpty)
+                    words(extra, 14, weight: 600, color: muted),
+                  if (added.isNotEmpty)
+                    words(
+                      item.purchased && got.isNotEmpty
+                          ? 'Added $added · Got $got'
+                          : 'Added $added',
+                      13,
+                      weight: 600,
+                      color: muted,
+                    ),
+                  if (!item.purchased && model.ruleFor(item.name) != null) ...[
+                    const SizedBox(height: 6),
+                    limitBadge(model.ruleFor(item.name)!.maximum),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: box(radius: 14, color: pale, border: null),
+              child: words(amount, 16, weight: 800),
+            ),
+            Tap(
+              label: 'Remove ${item.name} from my list',
+              onTap: () => removeFromList(item),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    border: Border.all(color: line, width: 2),
+                  ),
+                  child: const Icon(Icons.close,
+                      size: 22, color: Color(0xffb8665d)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Item picture tile: tick bottom right, amount top left.
   Widget itemTile(ShoppingItem item) {
-    final tint = sectionColour(item.category).withValues(alpha:.14);
+    final tint = sectionColour(item.category).withValues(alpha: model.colourBlind ? .4 : .14);
     return Tap(
       label: 'Edit ${item.name}',
       onTap: () => details(item.name, item),
@@ -2215,17 +2507,7 @@ class _WireframeHomeState extends State<WireframeHome> {
                     label:
                         'Mark ${item.name} ${item.purchased ? 'to buy' : 'got'}',
                     checked: item.purchased,
-                    onTap: () {
-                      final wasToBuy = !item.purchased;
-                      if (model.toggle(item)) {
-                        if (wasToBuy) model.logHabit(item.name);
-                      } else {
-                        setState(
-                          () => notice =
-                              'The quantity limit prevents returning this item to your list.',
-                        );
-                      }
-                    },
+                    onTap: () => tickItem(item),
                     child: Container(
                       width: 54,
                       height: 54,
@@ -2295,7 +2577,7 @@ class _WireframeHomeState extends State<WireframeHome> {
   void startShopping() {
     final items = model.items.where((i) => !i.purchased).toList();
     if (items.isEmpty) return;
-    const order0 = ['Produce', 'Dairy & Eggs', 'Bakery', 'Meat', 'Pantry', 'Other'];
+    final order0 = model.categories;
     int rank(ShoppingItem i) {
       final r = order0.indexOf(i.category);
       return r < 0 ? order0.length : r;
@@ -2355,7 +2637,7 @@ class _WireframeHomeState extends State<WireframeHome> {
       });
       return const SizedBox();
     }
-    final tint = sectionColour(item.category).withValues(alpha:.14);
+    final tint = sectionColour(item.category).withValues(alpha: model.colourBlind ? .4 : .14);
     void next() => setState(() => shopIndex++);
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
@@ -2723,12 +3005,7 @@ class _WireframeHomeState extends State<WireframeHome> {
               'All',
               'Favourites',
               'Recent',
-              'Produce',
-              'Dairy & Eggs',
-              'Bakery',
-              'Meat',
-              'Pantry',
-              'Other',
+              ...model.categories,
             ])
               Tap(
                 onTap: () => setState(() {
@@ -2991,7 +3268,7 @@ class _WireframeHomeState extends State<WireframeHome> {
         const SizedBox(height: 14),
         homeCard(Icons.settings_outlined, 'Settings', '', () => go('settings')),
         const SizedBox(height: 18),
-        Center(child: words('App version 56', 12, color: muted)),
+        Center(child: words('App version 59', 12, color: muted)),
       ],
     );
   }
@@ -3878,12 +4155,7 @@ class _WireframeHomeState extends State<WireframeHome> {
           children: [
             for (final c in [
               'All',
-              'Produce',
-              'Dairy & Eggs',
-              'Bakery',
-              'Meat',
-              'Pantry',
-              'Other',
+              ...model.categories,
             ])
               pill(
                 c == 'All' ? 'All items' : c,
@@ -4174,12 +4446,7 @@ class _WireframeHomeState extends State<WireframeHome> {
             runSpacing: 8,
             children: [
               for (final c in [
-                'Produce',
-                'Dairy & Eggs',
-                'Bakery',
-                'Meat',
-                'Pantry',
-                'Other',
+                ...model.categories,
               ])
                 pill(c, shownCategory == c, () => setState(() => addCategory = c)),
             ],
@@ -4631,12 +4898,7 @@ class _WireframeHomeState extends State<WireframeHome> {
           runSpacing: 12,
           children: [
             for (final c in [
-              'Produce',
-              'Dairy & Eggs',
-              'Bakery',
-              'Meat',
-              'Pantry',
-              'Other',
+              ...model.categories,
             ])
               Tap(
                 label: 'Shop section $c',
@@ -5114,8 +5376,8 @@ class _WireframeHomeState extends State<WireframeHome> {
                         blocked
                             ? '$limitText Please choose a smaller number.'
                             : '$limitText Do you want to add $quantity anyway?',
-                            style: type(14 * uiTextScale, 400, muted).copyWith(height: 1.4),
-                            ),
+                        style: type(14, 400, muted).copyWith(height: 1.4),
+                      ),
                       const SizedBox(height: 24),
                       if (!blocked) ...[
                         action(
