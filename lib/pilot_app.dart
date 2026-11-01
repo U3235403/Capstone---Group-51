@@ -4,12 +4,16 @@ import 'pilot_bridge.dart';
 import 'wireframe/app.dart';
 import 'wireframe/remote_model.dart';
 
+// Build with --dart-define=LOCAL_ONLY=true for the hosted local-only
+// version: it skips sign in and hides the top bar.
+const bool localOnlyBuild = bool.fromEnvironment('LOCAL_ONLY');
+
 class PilotApp extends StatelessWidget {
   const PilotApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: 'Stage 1',
+    title: 'Shopping List',
     theme: ThemeData(
       fontFamily: 'Inter',
       colorScheme: ColorScheme.fromSeed(seedColor: green),
@@ -34,7 +38,7 @@ class _PilotGateState extends State<PilotGate> {
   Map<String, dynamic>? profile;
   List<dynamic> lists = [], catalogue = [];
   String? householdId, error;
-  bool busy = false, changePassword = false, local = false;
+  bool busy = false, changePassword = false, local = localOnlyBuild;
   RemoteWireframeModel? remote;
   Future<Map<String, dynamic>> request(
     String path, [
@@ -117,6 +121,9 @@ class _PilotGateState extends State<PilotGate> {
   );
   @override
   Widget build(BuildContext context) {
+    if (local && localOnlyBuild) {
+      return const WireframeApp();
+    }
     if (remote != null || local) {
       return Scaffold(
         body: Column(
@@ -150,7 +157,7 @@ class _PilotGateState extends State<PilotGate> {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Stage 1 pilot')),
+      appBar: AppBar(title: const Text('Shopping List')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 440),

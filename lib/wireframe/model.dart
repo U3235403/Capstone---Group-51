@@ -6,6 +6,10 @@ import '../app_model.dart' show LocalOperation;
 import '../local_platform.dart';
 import '../shopping_item.dart';
 double uiTextScale = 1.0;
+// True while colour-blind colours are on. The app listens to this.
+final colourBlindMode = ValueNotifier<bool>(false);
+// True while high contrast is on.
+final highContrastMode = ValueNotifier<bool>(false);
 
 const groceries = <String, String>{
   'Organic Bananas': 'Produce',
@@ -370,6 +374,79 @@ class WireframeModel extends ChangeNotifier {
     save();
   }
 
+  // Colour-blind friendly shop-section colours.
+  bool colourBlind = false;
+
+  void setColourBlind(bool value) {
+    colourBlind = value;
+    colourBlindMode.value = value;
+    save();
+  }
+
+  // High contrast: darker text, borders and colours.
+  bool highContrast = false;
+
+  void setHighContrast(bool value) {
+    highContrast = value;
+    highContrastMode.value = value;
+    save();
+  }
+
+  // Shop sections. The first five are fixed, 'Other' is always last,
+  // and any added categories sit in between.
+  static const baseCategories = [
+    'Produce',
+    'Dairy & Eggs',
+    'Bakery',
+    'Meat',
+    'Pantry',
+  ];
+  List<String> customCategories = [];
+  List<String> get categories => [...baseCategories, ...customCategories, 'Other'];
+
+  // Adds a category. Returns a message if it cannot be added, else null.
+  String? addCategory(String name) {
+    var n = name.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (n.isEmpty) return 'Type a category name first.';
+    if (n.length > 24) return 'Please use a shorter name.';
+    n = n[0].toUpperCase() + n.substring(1);
+    if (categories.any((c) => c.toLowerCase() == n.toLowerCase())) {
+      return '$n is already there.';
+    }
+    customCategories.add(n);
+    save();
+    return null;
+  }
+
+  // Removes an added category. Its items move to 'Other'.
+  void removeCategory(String name) {
+    if (!customCategories.contains(name)) return;
+    ShoppingItem moved(ShoppingItem o) => o.category != name
+        ? o
+        : ShoppingItem(
+            id: o.id,
+            name: o.name,
+            quantity: o.quantity,
+            notes: o.notes,
+            purchased: o.purchased,
+            favourite: o.favourite,
+            category: 'Other',
+            assignee: o.assignee,
+            unit: o.unit,
+          );
+    items = items.map(moved).toList();
+    otherLists = otherLists.map((k, v) => MapEntry(k, v.map(moved).toList()));
+    customCategories.remove(name);
+    save();
+  }
+
+  int itemsIn(String category) =>
+      items.where((i) => i.category == category).length +
+      otherLists.values.fold(
+        0,
+        (n, l) => n + l.where((i) => i.category == category).length,
+      );
+
   double textScale = 1.0;
 
   void setTextScale(double value) {
@@ -384,6 +461,9 @@ class WireframeModel extends ChangeNotifier {
   // Saved, so sign-in happens once.
   String accountRole = '', phone = '', accountName = '', linkedTo = '';
   bool get signedIn => accountRole.isNotEmpty;
+  // True after Log out. The account is kept, so the next sign in
+  // skips setup.
+  bool signedOut = false;
   bool get isCarer => accountRole == 'carer';
 
   // 6 digit link code derived from the carer's phone number.
@@ -409,6 +489,24 @@ class WireframeModel extends ChangeNotifier {
     accountName = name;
     this.linkedTo = linkedTo;
     familyMode = role == 'carer';
+    signedOut = false;
+    save();
+  }
+
+  // Signs back in to the saved account.
+  void signBackIn() {
+    signedOut = false;
+    emit();
+    save();
+  }
+
+  // Removes the saved account so setup runs again.
+  void forgetAccount() {
+    accountRole = '';
+    phone = '';
+    accountName = '';
+    linkedTo = '';
+    signedOut = false;
     save();
   }
 
@@ -427,11 +525,10 @@ class WireframeModel extends ChangeNotifier {
     save();
   }
 
+  // Keeps the saved account so signing back in needs no setup.
   void signOut() {
-    accountRole = '';
-    phone = '';
-    accountName = '';
-    linkedTo = '';
+    signedOut = true;
+    emit();
     save();
   }
   // Favourite item names, and all previously added names (newest first).
@@ -463,6 +560,10 @@ class WireframeModel extends ChangeNotifier {
     'listFor': listFor,
     'textScale': textScale,
     'plainList': plainList,
+    'colourBlind': colourBlind,
+    'highContrast': highContrast,
+    'customCategories': customCategories,
+    'signedOut': signedOut,
     'otherLists': otherLists.map(
       (k, v) => MapEntry(k, v.map((i) => i.toJson()).toList()),
     ),
@@ -532,6 +633,15 @@ class WireframeModel extends ChangeNotifier {
             ((j['textScale'] as num?)?.toDouble() ?? 1.0).clamp(1.0, 1.5);
         uiTextScale = textScale;
         plainList = j['plainList'] as bool? ?? false;
+        colourBlind = j['colourBlind'] as bool? ?? false;
+        colourBlindMode.value = colourBlind;
+        highContrast = j['highContrast'] as bool? ?? false;
+        highContrastMode.value = highContrast;
+        signedOut = j['signedOut'] as bool? ?? false;
+        final rawCats = j['customCategories'];
+        customCategories = rawCats is List
+            ? rawCats.map((c) => '$c').toList()
+            : [];
 
         final rawFavs = j['favourites'];
         favourites = rawFavs is List ? rawFavs.whereType<String>().toList() : [];

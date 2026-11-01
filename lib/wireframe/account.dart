@@ -47,10 +47,15 @@ class _AccountSetupState extends State<AccountSetup> {
   String get cleanPhone => phone.text.replaceAll(RegExp(r'[^0-9+]'), '');
   int get digitCount => cleanPhone.replaceAll('+', '').length;
 
-  void go(int next) => setState(() {
-    problem = null;
-    step = next;
-  });
+  void go(int next) {
+    // Release the old text box and autofill session before changing step.
+    FocusManager.instance.primaryFocus?.unfocus();
+    TextInput.finishAutofillContext(shouldSave: false);
+    setState(() {
+      problem = null;
+      step = next;
+    });
+  }
 
   Future<void> sendCode() async {
     if (digitCount < 8 || digitCount > 15) {
@@ -209,6 +214,10 @@ class _AccountSetupState extends State<AccountSetup> {
     alignment: Alignment.center,
     decoration: box(radius: 22, border: green, thickness: 2),
     child: TextField(
+      // A key per field makes each step get a fresh text box, so the
+      // keyboard does not stay attached to the previous step's box.
+      key: ValueKey(c),
+      autofocus: true,
       controller: c,
       autofillHints: hints,
       keyboardType: keyboard,
@@ -719,4 +728,87 @@ class _AccountDetailsState extends State<AccountDetails> {
       ],
     ),
   );
+}
+
+// Shown after Log out. The account is saved, so one tap signs in.
+class WelcomeBack extends StatelessWidget {
+  const WelcomeBack({super.key, required this.model});
+  final WireframeModel model;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = model.accountName.trim();
+    return Scaffold(
+      backgroundColor: ink,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(40),
+            child: ColoredBox(
+              color: paper,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(32, 80, 32, 48),
+                children: [
+                  words(name.isEmpty ? 'Welcome back' : 'Welcome back, $name', 30,
+                      weight: 800),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Your lists are ready.',
+                    style: type(17, 500, muted).copyWith(height: 1.4),
+                  ),
+                  const SizedBox(height: 40),
+                  Tap(
+                    label: 'Sign in',
+                    onTap: model.signBackIn,
+                    child: Container(
+                      height: 84,
+                      alignment: Alignment.center,
+                      decoration: box(color: green, radius: 42, border: null),
+                      child: words('Sign in', 20,
+                          weight: 800, color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Tap(
+                    label: 'Not you? Set up a different account',
+                    onTap: () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (d) => AlertDialog(
+                          title: const Text('Set up a different account?'),
+                          content: const Text(
+                            'The saved name and phone number are removed. '
+                            'Your lists are kept.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(d, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(d, true),
+                              child: const Text('Continue'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (ok == true) model.forgetAccount();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Center(
+                        child: words('Not you? Set up a different account', 16,
+                            weight: 700, color: green),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
