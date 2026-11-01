@@ -175,3 +175,14 @@ Voice recognition runs entirely on the device, with no cloud service. The browse
 - **Synchronisation polls every ten seconds.** An edit held open longer than
   one interval can overwrite another session's change without warning.
 - **Notifications and reminders are not implemented.** The settings entry opens a placeholder screen.
+- **Some features belong to a superseded edition.** Reminders, biometric unlock, favourites, list copying and several preferences come from the earlier offline edition and are not reachable from the default entry point. `lib/legacy_main.dart` is retained for that historical edition.
+
+## Verification
+
+```powershell
+flutter analyze --no-pub
+flutter test --no-pub
+node test\pwa_test.mjs
+node test\install_test.mjs
+node test\local_services_test.mjs
+```
