@@ -1,37 +1,33 @@
-# Capstone Group 51 — Stage 1 offline edition
+# Capstone Group 51 — Stage 1 pilot PWA
 
-Shopping app for people aged 65+ living with MCI. Stage 1 runs entirely on this device. Source work is on branch `SAV`; the user has authorized pushing this branch only. Do not merge into main or deploy.
+The default entry point is `lib/main.dart`, which starts `PilotApp`. It offers pilot username/password sign-in and an independent local-only shopping mode. It does not open the legacy encrypted passphrase vault.
 
-## Run the offline release
+## Local setup
 
-Run `./run-local.command` from this repository, then open **http://127.0.0.1:5188**.
-Python 3 is required. The release is served only on this computer's loopback interface. Keep the terminal running; Ctrl+C stops the server. If port 5188 is already in use by this app, use the existing preview.
-
-Create your own passphrase (at least 12 characters). Your encrypted lists remain in this browser's local storage after restarting or refreshing. Use the same browser/profile and URL/port each time. Private browsing or clearing site data removes the stored account. No online password reset or backup is available.
-
-## Features
-
-Local passphrase unlock and automatic inactivity lock; household member names; persistent multiple lists and copying; item name, quantity, units, category, notes, assignment, favourite and purchase status; search, filters and sorting; local autocomplete; adjustable text/contrast/motion; reminders while open; and suggestions from local history.
-
-Voice input requires installed on-device English recognition. It never falls back to cloud speech or downloads models. Device unlock requires a compatible platform authenticator with WebAuthn PRF; it may use biometrics or a device PIN. These two hardware-dependent features are not marked complete until tested on a supported device.
-
-This delivery targets the **local web build**. Native macOS/iOS/Android storage adapters are not implemented. No Firebase, cloud sync, remote household invitations or external AI service is configured.
-
-## Offline build
+Install Flutter on PATH and Node.js 22+. Resolve the Flutter dependencies before building:
 
 ```sh
-FLUTTER_SUPPRESS_ANALYTICS=true DART_SUPPRESS_ANALYTICS=true /Users/ups/Documents/Flutter/flutter/bin/flutter --suppress-analytics pub get --offline
-FLUTTER_SUPPRESS_ANALYTICS=true DART_SUPPRESS_ANALYTICS=true /Users/ups/Documents/Flutter/flutter/bin/flutter --suppress-analytics build web --no-pub --no-wasm-dry-run --no-web-resources-cdn
+flutter pub get
+node scripts/build-pwa.mjs
+node scripts/serve-pwa.mjs
 ```
 
-Fonts and CanvasKit are bundled. The page's content-security policy restricts resources and connections to its own local origin. Use this release build for offline review, not the earlier debug server on port 5187.
+The build script uses `flutter` from PATH. Alternatively set `FLUTTER_BIN` to the Flutter executable (not its directory). Dependencies must already be resolved because the release build uses `--no-pub`. Offline dependency resolution with `flutter pub get --offline` requires all packages to be cached first.
+
+Open http://127.0.0.1:5188/. Local-only shopping uses browser storage for that origin. Shared mode additionally requires the local database emulators, API, catalogue and provisioned pilot accounts: follow [pilot setup](docs/PILOT-INTEGRATION.md) and [backend instructions](backend/README.md). Shared mode polls every 10 seconds and does not support durable offline edits. Production services are not provisioned by these commands.
+
+## Feature status
+
+Use the [current checklist](docs/design/checklist.md) for available, partial and superseded workflows. Reminders, biometric unlock, favourites, copying, per-item assignment and several preferences belong to the earlier offline edition and are not exposed by the default app. The retained `lib/legacy_main.dart` entry point is for that historical edition; its tests do not certify the current UI.
 
 ## Verification
 
 ```sh
-/Users/ups/Documents/Flutter/flutter/bin/flutter --suppress-analytics analyze --no-pub
-/Users/ups/Documents/Flutter/flutter/bin/flutter --suppress-analytics test --no-pub
+flutter analyze --no-pub
+flutter test --no-pub
+node test/pwa_test.mjs
+node test/install_test.mjs
 node test/local_services_test.mjs
 ```
 
-See `docs/design/checklist.md` for ticket-by-ticket scope and `docs/design/local-work-status.md` for implementation details and limitations.
+See [PWA delivery notes](PWA-DELIVERY.md) for packaging context. Historical machine-specific URLs/certificate notes are not portable setup requirements. No public deployment or merge to main is implied.
