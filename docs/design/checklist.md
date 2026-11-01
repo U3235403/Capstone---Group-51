@@ -1,52 +1,50 @@
-# Stage 1 local delivery checklist
+# Stage 1 — current application checklist
 
-Source: the two task screenshots supplied by the user. The screenshots contain titles, not detailed acceptance criteria. A tick below means the stated **offline local scope** has been implemented and tested; it does not update or close a Jira ticket.
+This checklist describes the default `lib/main.dart` → `PilotApp` → `PilotGate` → `WireframeApp` path on SAV. Task titles come from the supplied screenshots; they are not full acceptance criteria. Status here does not close Jira tickets.
 
-## Implemented locally
+**Available** means reachable in the current UI, not production acceptance. **Partial** means only the stated subset is reachable. **Superseded** means the earlier offline implementation remains in source but is not delivered through the default app. Legacy test results do not establish current UI availability.
 
-- [x] SCRUM-51 — Secure login: local passphrase account, encrypted saved vault, lock/unlock and inactivity lock. No cloud identity or password recovery.
-- [x] SCRUM-64 — Household setup: household name, local member names, duplicate-name validation and safe member removal. No remote invitations.
-- [x] SCRUM-73 — Settings & preferences: saved text size, contrast, motion and inactivity timeout.
-- [x] SCRUM-92 — Copy an existing list: independent IDs, retained details and cleared purchased status.
-- [x] SCRUM-104 — Add, edit, delete, update items: validated forms, discard protection, delete confirmation and Undo.
-- [x] SCRUM-113 — Mark item as purchased: reversible state and remaining/purchased counts.
-- [x] SCRUM-119 — Mark item as favourite: persisted star action and favourites filter.
-- [x] SCRUM-124 — Categorise items: eight selectable categories and category-aware autocomplete.
-- [x] SCRUM-129 — Item details: name, quantity, unit, category, assignment, purchase and favourite status.
-- [x] SCRUM-133 — Notes on items: editable notes, saved with each item and searchable.
-- [x] SCRUM-137 — Search, Sort & Filter: combined controls with visible reset action and no-match state.
-- [x] SCRUM-141 — Filter items: category, purchase state, favourite and responsible member.
-- [x] SCRUM-147 — Sort items: added order, name, category and quantity without changing saved order.
-- [x] SCRUM-155 — Assign responsibility: household member selection and unassignment when a member is removed.
-- [x] SCRUM-159 — Input Methods & Accessibility: labelled text/touch controls, keyboard-ready Flutter controls, scrollable forms, validation, and text fallback. Voice/device limitations remain below.
-- [x] SCRUM-162 — Text entry with autocomplete: local common items and saved history; selection remains optional.
-- [x] SCRUM-177 — Accessible display: larger text, higher contrast, reduced motion and a passing doubled-text phone-layout test. Full assistive-technology review remains recommended.
-- [x] SCRUM-184 — AI & Smart Assistance: offline rules-based suggestions, explained to the user and never added automatically. No external AI or generative model.
-- [x] SCRUM-188 — Shopping reminders: persistent scheduled in-app reminders, overdue display, cancel, dismiss and postpone. App must be open/unlocked for a reminder to appear.
-- [x] SCRUM-192 — Intelligent list recommendations: ranked previous items/favourites, excluding items already on the current list.
+## Current scope by task
 
-## Implemented paths, not yet accepted as complete
+| Task | Status | Current scope / remaining work |
+| --- | --- | --- |
+| SCRUM-51 Secure login | Partial / replaced | Pilot username/password login, temporary-password change and administrator recovery replace the old passphrase vault. Local-only shopping bypasses login; it does not use the encrypted vault. Production security validation remains outstanding. |
+| SCRUM-64 Household setup | Partial / replaced | Shared household creation, selection and member invitations. The legacy local-member editor is superseded. |
+| SCRUM-73 Settings & preferences | Superseded | Legacy text-size, contrast, motion and inactivity settings are not exposed in the default UI. Caregiver quantity settings are a separate feature. |
+| SCRUM-92 Copy a list | Superseded | Legacy copy workflow is not exposed in the default UI. |
+| SCRUM-104 Add/edit/delete/update | Partial | Catalogue item addition and quantity editing are reachable. Legacy arbitrary-item forms, delete/Undo and discard protection are not delivered by the default UI. Backend operations alone do not complete the UI task. |
+| SCRUM-113 Purchased state | Available | Toggle items between to-buy and purchased. |
+| SCRUM-119 Favourites | Superseded | Legacy star action and favourites filter are not reachable. |
+| SCRUM-124 Categories | Partial | Catalogue categories and category browsing are available; arbitrary category editing from the legacy editor is not. |
+| SCRUM-129 Item details | Partial | Catalogue item and quantity view/edit. Legacy notes, assignment, unit and favourite fields are not exposed. |
+| SCRUM-133 Notes | Superseded | Legacy notes editor/search is not reachable. |
+| SCRUM-137 Search/sort/filter | Partial | Catalogue text search and category filtering are reachable. Legacy combined list controls and sorting are not. |
+| SCRUM-141 Filter items | Partial | Catalogue category filtering only; legacy purchase/favourite/member filters are not exposed. |
+| SCRUM-147 Sort items | Superseded | Legacy sort controls are not reachable. |
+| SCRUM-155 Assign responsibility | Superseded | Legacy per-item member assignment is not reachable. Household membership is not item assignment. |
+| SCRUM-159 Input/accessibility | Partial | Text/touch controls and semantic labels exist. Full keyboard, screen-reader and physical-device acceptance remains outstanding. |
+| SCRUM-162 Autocomplete | Superseded / replaced | Current catalogue search is not the legacy history-aware autocomplete field. |
+| SCRUM-166 Voice entry | Partial / device validation pending | Catalogue voice action exists with an error/text fallback. Successful on-device recognition still requires supported browser/device testing. |
+| SCRUM-172 Biometric activation | Superseded; never hardware-accepted | Legacy WebAuthn PRF enrollment/unlock is not exposed by PilotGate. Simulated crypto tests do not prove biometric login. |
+| SCRUM-177 Accessible display | Partial | Current large shopping controls exist; legacy adjustable text/contrast/motion settings are superseded. Full accessibility acceptance remains outstanding. |
+| SCRUM-184 Smart assistance | Partial / replaced | Quantity notices and caregiver safety limits are available. Legacy history suggestions are not exposed; no external AI service is delivered. |
+| SCRUM-188 Reminders | Superseded | Legacy in-app reminder scheduling/dismiss/postpone is not reachable from the default app. No background reminder delivery is claimed. |
+| SCRUM-192 Recommendations | Superseded | Legacy ranked history/favourites recommendations are not reachable. |
 
-- [ ] SCRUM-166 — Voice entry: on-device-only recognition path and graceful fallback implemented. Actual microphone/transcription requires a supporting browser and installed English model. No cloud fallback.
-- [ ] SCRUM-172 — Biometric activation: platform-authenticator PRF enrollment/unlock path implemented. Actual supported device verification is outstanding; an authenticator may use a device PIN rather than biometrics. Simulated cryptographic tests are not a physical biometric test.
+## Storage, sharing and delivery boundaries
 
-## Validation evidence
+- Shared household/list creation, list saving, purchase updates and caregiver milk quantity rules use the authenticated local API.
+- Shared snapshots poll every 10 seconds. This is not push-based real-time sync or a durable offline outbox.
+- Local-only shopping uses an independent browser store; there is no automatic import from the legacy encrypted vault or into shared lists.
+- PWA installation/caching is implemented separately from authentication and shared-data availability. A cached app shell does not make the shared backend available offline.
+- Cloud backup, production Australian hosting, restore/deletion drills and physical-device acceptance are not completed by this checklist.
 
-- Flutter static analysis: no issues.
-- Flutter model/widget suite: all 18 tests passed, covering persistence serialization, copies, combined filters/sorting, household settings, member removal, recommendations, failed-save recovery, queued writes, item flows, large text, voice fallback, reminders and lock.
-- JavaScript service tests: encrypted storage, wrong passphrase, reload, tampering, storage failure, stale tabs, unsupported capability paths and simulated PRF wrapping.
-- Release build: local fonts/renderer with CDN resources disabled.
-- Browser evidence is recorded separately by task ID; screenshots illustrate visible states and do not independently prove cryptographic or hardware behavior.
-- Only the `SAV` source branch is authorized for push. No merge, deployment or online Jira/Figma edits.
+## Legacy source and evidence
 
-## Try the app
+`lib/legacy_main.dart` explicitly starts the old `MyApp`; it is not the standard build target. Legacy code and tests are retained for reference, not presented as delivered current features. Earlier 18-test and encrypted-vault evidence applies to that edition. See `docs/PILOT-INTEGRATION.md` for the integrated pilot's historical validation and remaining gates. Screenshots show visible states, not full ticket acceptance or hardware/security certification.
 
-1. Open http://127.0.0.1:5188 and create your own passphrase.
-2. Open Household & settings, name the household and add a member.
-3. Add Milk, select a category/member, add a note, and mark it favourite.
-4. Mark it purchased, edit it, remove it and use Undo.
-5. Copy the list; copied items start unpurchased. Create a fresh list to see history suggestions.
-6. Try search and combined filters. Set a reminder and change display preferences.
-7. Lock and unlock or refresh: saved data returns after successful authentication.
+## Try the current application
 
-Keep the same URL/port and browser profile to access the same local vault. Clearing site data removes it.
+Follow `docs/PILOT-INTEGRATION.md` to start the local emulators, API and web server. Open the web URL, sign in with a provisioned pilot account, create/select a household and list, then add catalogue items and toggle purchased state. Alternatively choose **Use local-only shopping list** for the independent browser store. Refreshing shared mode requires sign-in again.
+
+No Jira status, production deployment or main-branch merge is implied by this document.

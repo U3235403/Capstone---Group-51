@@ -4,9 +4,13 @@ import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const flutter=process.env.FLUTTER_BIN || '/Users/ups/Documents/Flutter/flutter/bin/flutter';
+const flutter=process.env.FLUTTER_BIN || 'flutter';
 if (!process.argv.includes('--package-only')) {
  const result=spawnSync(flutter,['--suppress-analytics','build','web','--release','--no-pub','--pwa-strategy=none'],{cwd:root,stdio:'inherit',env:{...process.env,FLUTTER_SUPPRESS_ANALYTICS:'true',DART_SUPPRESS_ANALYTICS:'true'}});
+ if(result.error) {
+  console.error(`Unable to start Flutter (${flutter}): ${result.error.message}. Install Flutter on PATH or set FLUTTER_BIN to its executable.`);
+  process.exit(1);
+ }
  if(result.status!==0) process.exit(result.status||1);
 }
 const dir=path.join(root,'build/web');
