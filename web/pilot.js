@@ -29,10 +29,15 @@
   if(action==='retry')return retry();
   const base=`/api/households/${selected.householdId}`;
   if(action==='put'||action==='toggle'){
-   const existing=snapshot.items.find(x=>ids.get(x.id)===input.id);
-   const product=selected.catalogue.find(x=>x.name===input.name||x.id===existing?.productKey);if(!product)throw Error('Product unavailable');
-   const rule=snapshot.rules.find(x=>x.id===product.id);
+      const existing = input.id === undefined ? undefined : snapshot.items.find(x => !x.deleted && ids.get(x.id) === input.id);
+      const product = selected.catalogue.find(x => x.name === input.name || x.id === existing?.productKey); if (!product) throw Error('Product unavailable');
+      const rule = snapshot.rules.find(x => x.id === product.id);
    return write(`${base}/lists/${selected.listId}/items`,{expectedRevision:snapshot.list.revision,ruleRevision:rule?.revision||0,productKey:product.id,quantity:input.quantity??existing.quantity,purchased:action==='toggle'?!existing.purchased:existing?.purchased||false,favourite:existing?.favourite||false,notes:existing?.notes||'',assigneeUid:existing?.assigneeUid||null,confirmed:input.confirmed===true,...(existing?{itemId:existing.id}:{})});
+  }
+  if(action==='delete'){
+   const existing=snapshot.items.find(x=>ids.get(x.id)===input.id);
+   if(!existing||existing.deleted)throw Error('Item unavailable');
+   return write(`${base}/lists/${selected.listId}/items/${existing.id}/delete`,{expectedRevision:snapshot.list.revision});
   }
   if(action==='rule'){
    const product=selected.catalogue.find(x=>x.name===input.name);if(!product)throw Error('Product unavailable');

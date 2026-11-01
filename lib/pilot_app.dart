@@ -28,6 +28,8 @@ class _PilotGateState extends State<PilotGate> {
   final username = TextEditingController(),
       password = TextEditingController(),
       name = TextEditingController(),
+      householdName = TextEditingController(),
+      listName = TextEditingController(),
       invitation = TextEditingController();
   Map<String, dynamic>? profile;
   List<dynamic> lists = [], catalogue = [];
@@ -85,8 +87,8 @@ class _PilotGateState extends State<PilotGate> {
 
   @override
   void dispose() {
-    for (final c in [username, password, name, invitation]) {
-      c.dispose();
+    for (final c in [username, password, name, householdName, listName, invitation]) {
+    c.dispose();
     }
     remote?.dispose();
     super.dispose();
@@ -212,14 +214,14 @@ class _PilotGateState extends State<PilotGate> {
                     '${h['name']} (${h['role']})',
                     () => choose(h['id'] as String),
                   ),
-                field(name, 'New household name'),
+                field(householdName, 'New household name'),
                 button('Create household', () async {
                   await request('/api/households', {
-                    'name': name.text,
+                    'name': householdName.text,
                     'requestId':
                         '${DateTime.now().microsecondsSinceEpoch}-household',
                   });
-                  name.clear();
+                  householdName.clear();
                   await refresh();
                 }),
                 field(invitation, 'Invitation token'),
@@ -236,14 +238,14 @@ class _PilotGateState extends State<PilotGate> {
                   SelectableText('Household ID: $householdId'),
                   for (final l in lists)
                     button(l['name'] as String, () => open(l['id'] as String)),
-                  field(name, 'New list name'),
+                  field(listName, 'New list name'),
                   button('Create list', () async {
                     await request('/api/households/$householdId/lists', {
-                      'name': name.text,
+                      'name': listName.text,
                       'requestId':
                           '${DateTime.now().microsecondsSinceEpoch}-list',
                     });
-                    name.clear();
+                    listName.clear();
                     await choose(householdId!);
                   }),
                   field(username, 'Invite username (member)'),
